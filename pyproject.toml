@@ -1,0 +1,11 @@
+[project]
+name = "dj-asbl"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=6.0.5",
+    "django-unfold>=0.93.0",
+    "icalendar>=7.1.0",
+]

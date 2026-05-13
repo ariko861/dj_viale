@@ -1,0 +1,19 @@
+from django.db import models
+
+
+class Organe(models.Model):
+
+    code = models.CharField(max_length=10, unique=True)
+    nom = models.CharField(max_length=255)
+
+    nom_court = models.CharField(max_length=100, blank=True, null=True)
+
+    duree_mandat = models.PositiveIntegerField(default=0, help_text="Durée par défaut d'un mandat, en nombre de jours")
+
+    membres = models.ManyToManyField(
+        'Membre',
+        through='Adhesion',
+    )
+
+    def __str__(self):
+        return self.nom
