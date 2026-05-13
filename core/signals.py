@@ -38,3 +38,13 @@ def creer_membres_reunion(sender, instance, created, **kwargs):
         )
         for adhesion in adhesions
     ])
+
+
+@receiver(post_save, sender='core.Procuration')
+def set_etat_procuration(sender, instance, **kwargs):
+    from core.models.membre_reunion import MembreReunion
+
+    MembreReunion.objects.filter(
+        reunion=instance.reunion,
+        membre=instance.mandant,
+    ).update(etat=MembreReunion.Etat.PROCURATION)

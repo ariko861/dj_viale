@@ -20,6 +20,8 @@ class Procuration(models.Model):
         on_delete=models.CASCADE,
     )
 
+    fichier = models.FileField(upload_to='procurations/', null=True, blank=True)
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['mandant', 'reunion'], name='unique_procuration_mandant_reunion')

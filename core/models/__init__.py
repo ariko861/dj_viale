@@ -6,3 +6,5 @@ from .reunion import Reunion
 from .membre_reunion import MembreReunion
 from .procuration import Procuration
 from .user import User
+from .tag_document import TagDocument
+from .modele_document import ModeleDocument
