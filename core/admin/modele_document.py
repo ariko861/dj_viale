@@ -6,7 +6,9 @@ from core.models import ModeleDocument, TagDocument
 
 @admin.register(TagDocument)
 class TagDocumentAdmin(ModelAdmin):
-    pass
+
+    def has_module_permission(self, request):
+        return False
 
 
 @admin.register(ModeleDocument)
