@@ -11,9 +11,12 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+env = environ.Env()
 
 
 # Quick-start development settings - unsuitable for production
@@ -102,6 +105,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+# SMTP
+
+SMTP_PORT = env.int('SMTP_PORT', default=25)
+SMTP_HOST = env.str('SMTP_HOST', default='localhost')
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/

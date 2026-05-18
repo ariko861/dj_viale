@@ -15,3 +15,6 @@ wheels/
 *.sqlite3
 
 /media
+
+# Environnement
+.env
