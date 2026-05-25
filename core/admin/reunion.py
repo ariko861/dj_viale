@@ -1,9 +1,15 @@
-from django.contrib import admin
-from django.urls import reverse
+import io
+
+from django.contrib import admin, messages
+from django.core.mail import EmailMessage
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import path, reverse
 from django.utils.html import format_html, mark_safe
-from unfold.admin import ModelAdmin, StackedInline, TabularInline
+from docxtpl import DocxTemplate
+from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
+from core.forms import EnvoyerEmailForm
 from core.models import Membre, ModeleDocument, Procuration, Reunion
 
 
@@ -32,7 +38,18 @@ class ReunionAdmin(ModelAdmin):
 
     inlines = [MembresInline, ProcurationsInline]
     readonly_fields = ['documents_disponibles']
-    actions_detail = ['telecharger_ical']
+    actions_detail = ['telecharger_ical', 'envoyer_email']
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<int:pk>/email/',
+                self.admin_site.admin_view(self.envoyer_email_view),
+                name='core_reunion_email',
+            ),
+        ]
+        return custom + urls
 
     def documents_disponibles(self, obj):
         if not obj.pk:
@@ -55,5 +72,73 @@ class ReunionAdmin(ModelAdmin):
 
     @action(description='Télécharger iCal', url_path='ical')
     def telecharger_ical(self, request, object_id):
-        from django.shortcuts import redirect
         return redirect(reverse('reunion-ical', args=[object_id]))
+
+    @action(description='Envoyer un email', url_path='email')
+    def envoyer_email(self, request, object_id):
+        return redirect(reverse('admin:core_reunion_email', args=[object_id]))
+
+    def envoyer_email_view(self, request, pk):
+        reunion = get_object_or_404(
+            Reunion.objects.select_related('organe', 'adresse'),
+            pk=pk,
+        )
+
+        if request.method == 'POST':
+            form = EnvoyerEmailForm(request.POST, reunion=reunion)
+            if form.is_valid():
+                destinataires = [m.email for m in form.cleaned_data['destinataires']]
+                email = EmailMessage(
+                    subject=form.cleaned_data['sujet'],
+                    body=form.cleaned_data['corps'],
+                    to=destinataires,
+                )
+                for modele in form.cleaned_data['documents']:
+                    contenu = self._generer_document(reunion, modele)
+                    nom = f"{modele.nom} - {reunion.debut.strftime('%Y-%m-%d')}.docx"
+                    email.attach(
+                        nom,
+                        contenu,
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    )
+                email.send()
+                messages.success(request, f'Email envoyé à {len(destinataires)} destinataire(s).')
+                return redirect(reverse('admin:core_reunion_change', args=[pk]))
+        else:
+            form = EnvoyerEmailForm(
+                reunion=reunion,
+                initial={
+                    'destinataires': list(reunion.membres.values_list('pk', flat=True)),
+                    'sujet': f'[{reunion.organe}] {reunion.debut.strftime("%d/%m/%Y")}',
+                },
+            )
+
+        context = {
+            **self.admin_site.each_context(request),
+            'opts': self.model._meta,
+            'reunion': reunion,
+            'form': form,
+            'title': 'Envoyer un email',
+        }
+        return render(request, 'admin/core/reunion/envoyer_email.html', context)
+
+    def _generer_document(self, reunion, modele):
+        membres = (
+            reunion.membrereunion_set
+            .select_related('membre')
+            .order_by('membre__nom', 'membre__prenom')
+        )
+        context = {
+            'reunion': reunion,
+            'organe': reunion.organe,
+            'adresse': reunion.adresse,
+            'membres': list(membres),
+            'date': reunion.debut.strftime('%d/%m/%Y'),
+            'heure': reunion.debut.strftime('%H:%M'),
+        }
+        tpl = DocxTemplate(modele.fichier.path)
+        tpl.render(context)
+        buf = io.BytesIO()
+        tpl.save(buf)
+        buf.seek(0)
+        return buf.read()

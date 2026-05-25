@@ -16,8 +16,11 @@ import environ
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-env = environ.Env()
+env = environ.Env(
+    DEBUG=(bool, False),
+)
 
+environ.Env.read_env(Path(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -26,10 +29,9 @@ env = environ.Env()
 SECRET_KEY = 'django-insecure-kx)990r2e2z2(1#7simh8hxu*qec77o2#k2jd(gd6b7byvxj$)'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool('DEBUG', default=True)
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['*'])
 
 # Application definition
 
@@ -106,10 +108,13 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# SMTP
+# Email
 
-SMTP_PORT = env.int('SMTP_PORT', default=25)
-SMTP_HOST = env.str('SMTP_HOST', default='localhost')
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env.str('SMTP_HOST', default='localhost')
+EMAIL_PORT = env.int('SMTP_PORT', default=25)
+EMAIL_USE_TLS = env.bool('SMTP_USE_TLS', default=False)
+DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', default='asbl@localhost')
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/

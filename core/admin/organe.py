@@ -1,10 +1,10 @@
 from django.contrib import admin
-from unfold.admin import ModelAdmin, StackedInline
+from unfold.admin import ModelAdmin, StackedInline, TabularInline
 
 from core.models import Organe
 
 
-class MembresInline(StackedInline):
+class MembresInline(TabularInline):
     model = Organe.membres.through
     extra = 0
     tab = True
