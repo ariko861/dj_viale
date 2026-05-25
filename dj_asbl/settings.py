@@ -30,6 +30,7 @@ SECRET_KEY = env.str('SECRET_KEY', default='django-insecure-kx)990r2e2z2(1#7simh
 DEBUG = env.bool('DEBUG', default=True)
 
 ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['*'])
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 
 # Application definition
 
