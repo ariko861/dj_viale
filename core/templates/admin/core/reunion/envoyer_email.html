@@ -46,6 +46,9 @@
   .submit-row input[type=submit]:hover { background: #1d4ed8; }
   .submit-row a { color: #6b7280; text-decoration: none; }
   .submit-row a:hover { text-decoration: underline; }
+  .copy-link { margin-left: .5rem; font-size: .75rem; color: #2563eb; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .copy-link:hover { text-decoration: underline; }
+  .copy-link.copied { color: #16a34a; }
 </style>
 
 <h1>Envoyer un email — {{ reunion }}</h1>
@@ -82,4 +85,30 @@
     <a href="{% url opts|admin_urlname:'change' reunion.pk %}">Annuler</a>
   </div>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('input[data-public-url]').forEach(function (input) {
+    var url = input.getAttribute('data-public-url');
+    var label = input.closest('label');
+    if (!label) return;
+    var link = document.createElement('a');
+    link.href = '#';
+    link.className = 'copy-link';
+    link.textContent = '🔗 Copier le lien';
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      navigator.clipboard.writeText(url).then(function () {
+        link.textContent = '✓ Lien copié';
+        link.classList.add('copied');
+        setTimeout(function () {
+          link.textContent = '🔗 Copier le lien';
+          link.classList.remove('copied');
+        }, 2000);
+      });
+    });
+    label.appendChild(link);
+  });
+});
+</script>
 {% endblock %}

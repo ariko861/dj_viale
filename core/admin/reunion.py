@@ -167,7 +167,7 @@ class ReunionAdmin(ModelAdmin):
         )
 
         if request.method == 'POST':
-            form = EnvoyerEmailForm(request.POST, reunion=reunion)
+            form = EnvoyerEmailForm(request.POST, reunion=reunion, request=request)
             if form.is_valid():
                 destinataires = [m.email for m in form.cleaned_data['destinataires']]
                 reply_to_value = form.cleaned_data.get('reply_to')
@@ -224,6 +224,7 @@ class ReunionAdmin(ModelAdmin):
         else:
             form = EnvoyerEmailForm(
                 reunion=reunion,
+                request=request,
                 initial={
                     'destinataires': list(reunion.membres.values_list('pk', flat=True)),
                     'sujet': f'[{reunion.organe}] {reunion.debut.strftime("%d/%m/%Y")}',
