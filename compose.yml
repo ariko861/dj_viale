@@ -18,7 +18,7 @@ services:
     build: .
     restart: unless-stopped
     depends_on:
-      db:
+      dj_asbl_db:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@dj_asbl_db:5432/${POSTGRES_DB:-dj_asbl}
