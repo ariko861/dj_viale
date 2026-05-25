@@ -27,6 +27,22 @@ class MembreResource(resources.ModelResource):
     def dehydrate_adresse_code_postal(self, membre):
         return membre.adresse.code_postal if membre.adresse else ''
 
+    def before_save_instance(self, instance, row, **kwargs):
+        rue = str(row.get('adresse') or '').strip()
+        ville = str(row.get('ville') or '').strip()
+        code_postal = str(row.get('code_postal') or '').strip()
+
+        if not any([rue, ville, code_postal]):
+            return
+
+        if instance.adresse_id:
+            Adresse.objects.filter(pk=instance.adresse_id).update(
+                adresse=rue, ville=ville, code_postal=code_postal,
+            )
+        else:
+            instance.adresse = Adresse.objects.create(
+                adresse=rue, ville=ville, code_postal=code_postal,
+            )
 
 
 @admin.register(Membre)
