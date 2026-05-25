@@ -233,6 +233,8 @@ class ReunionAdmin(ModelAdmin):
             'membres': list(membres),
             'date': reunion.debut.strftime('%d/%m/%Y'),
             'heure': reunion.debut.strftime('%H:%M'),
+            'debut': reunion.debut,
+            'fin': reunion.fin,
             'secretaire': secretaire,
             'president': president,
             'today': date.today(),

@@ -18,6 +18,8 @@ class Reunion(models.Model):
         limit_choices_to={'est_lieu_reunion': True},
     )
 
+    ordre_du_jour = models.TextField(null=True, blank=True)
+
     membres = models.ManyToManyField(
         'Membre',
         through='MembreReunion',
