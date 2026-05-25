@@ -34,9 +34,11 @@
   .email-form textarea { resize: vertical; }
   .email-form .help { font-size: .8rem; color: #6b7280; margin-top: .25rem; }
   .email-form .errorlist { color: #dc2626; list-style: none; padding: 0; margin: .25rem 0 0; font-size: .85rem; }
-  .checkbox-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .4rem; }
-  .checkbox-list li label { font-weight: normal; display: flex; align-items: center; gap: .5rem; cursor: pointer; }
-  .checkbox-list li input[type=checkbox] { width: auto; }
+  .email-form .field-fieldset { border: none; padding: 0; margin: 0; }
+  .email-form .field-fieldset legend.field-label { float: left; width: 100%; margin-bottom: .4rem; }
+  .email-form ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .4rem; clear: both; }
+  .email-form ul li label { font-weight: normal; display: flex; align-items: center; gap: .5rem; cursor: pointer; }
+  .email-form ul li input[type=checkbox] { width: auto; }
   .inline-check label { font-weight: normal; display: flex; align-items: center; gap: .5rem; cursor: pointer; }
   .inline-check input[type=checkbox] { width: auto; }
   .submit-row { display: flex; gap: 1rem; align-items: center; margin-top: 2rem; }
@@ -55,71 +57,25 @@
     <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
   {% endif %}
 
-  <div class="field-row">
-    <label class="field-label">{{ form.destinataires.label }}</label>
-    <ul class="checkbox-list">
-      {% for choice in form.destinataires %}
-        <li>{{ choice }}</li>
-      {% endfor %}
-    </ul>
-    {% if form.destinataires.errors %}<ul class="errorlist">{% for e in form.destinataires.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-  </div>
-
-  <div class="field-row">
-    <label class="field-label" for="{{ form.sujet.id_for_label }}">{{ form.sujet.label }}</label>
-    {{ form.sujet }}
-    {% if form.sujet.errors %}<ul class="errorlist">{% for e in form.sujet.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-  </div>
-
-  <div class="field-row">
-    <label class="field-label" for="{{ form.reply_to.id_for_label }}">{{ form.reply_to.label }}</label>
-    {{ form.reply_to }}
-    {% if form.reply_to.help_text %}<p class="help">{{ form.reply_to.help_text }}</p>{% endif %}
-    {% if form.reply_to.errors %}<ul class="errorlist">{% for e in form.reply_to.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-  </div>
-
-  <div class="field-row">
-    <label class="field-label">{{ form.corps.label }}</label>
-    {{ form.corps }}
-    {% if form.corps.errors %}<ul class="errorlist">{% for e in form.corps.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-  </div>
-
-  <div class="field-row">
-    <div class="inline-check">
-      <label for="{{ form.joindre_ical.id_for_label }}">
-        {{ form.joindre_ical }} {{ form.joindre_ical.label }}
-      </label>
+  {% for field in form %}
+    <div class="field-row">
+      {% if field.field.widget.allow_multiple_selected %}
+        <fieldset class="field-fieldset">
+          <legend class="field-label">{{ field.label }}</legend>
+          {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+          {{ field }}
+        </fieldset>
+      {% elif field.field.widget.input_type == 'checkbox' %}
+        <div class="inline-check">
+          <label for="{{ field.id_for_label }}">{{ field }} {{ field.label }}</label>
+        </div>
+      {% else %}
+        <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+      {% endif %}
+      {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
     </div>
-    {% if form.joindre_ical.errors %}<ul class="errorlist">{% for e in form.joindre_ical.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-  </div>
-
-  <div class="field-row">
-    <label class="field-label">{{ form.documents_reunion.label }}</label>
-    {% if form.documents_reunion.field.queryset.exists %}
-      <ul class="checkbox-list">
-        {% for choice in form.documents_reunion %}
-          <li>{{ choice }}</li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="help">Aucun document attaché à cette réunion.</p>
-    {% endif %}
-    {% if form.documents_reunion.errors %}<ul class="errorlist">{% for e in form.documents_reunion.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-  </div>
-
-  <div class="field-row">
-    <label class="field-label">{{ form.documents.label }}</label>
-    {% if form.documents.field.queryset.exists %}
-      <ul class="checkbox-list">
-        {% for choice in form.documents %}
-          <li>{{ choice }}</li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="help">Aucun modèle de document configuré pour cet organe.</p>
-    {% endif %}
-    {% if form.documents.errors %}<ul class="errorlist">{% for e in form.documents.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-  </div>
+  {% endfor %}
 
   <div class="submit-row">
     <input type="submit" value="Envoyer">

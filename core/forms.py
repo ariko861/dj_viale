@@ -1,8 +1,17 @@
+from datetime import date, timedelta
+
 from django import forms
 
 from unfold.contrib.forms.widgets import WysiwygWidget
 
-from core.models import DocumentReunion, Membre, ModeleDocument
+from core.models import DocumentReunion, Membre, ModeleDocument, Reunion
+
+
+class DocumentAutreReunionField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        date_reunion = obj.reunion.debut.strftime('%d/%m/%Y')
+        nom = obj.nom or obj.fichier.name.split('/')[-1]
+        return f'{obj.reunion.organe} - {date_reunion} — {nom}'
 
 
 class MembreChoiceField(forms.TypedChoiceField):
@@ -50,10 +59,18 @@ class EnvoyerEmailForm(forms.Form):
         required=False,
         widget=forms.CheckboxSelectMultiple,
     )
+    documents_autres_reunions = DocumentAutreReunionField(
+        label="Documents d'autres réunions joints",
+        queryset=DocumentReunion.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text='Documents des réunions sur les 2 dernières années.',
+    )
 
     def __init__(self, *args, reunion=None, **kwargs):
         super().__init__(*args, **kwargs)
         if reunion:
+            limite = date.today() - timedelta(days=730)
             self.fields['destinataires'].queryset = (
                 Membre.objects.filter(membrereunion__reunion=reunion)
                 .order_by('nom', 'prenom')
@@ -64,4 +81,12 @@ class EnvoyerEmailForm(forms.Form):
             )
             self.fields['documents_reunion'].queryset = (
                 DocumentReunion.objects.filter(reunion=reunion)
+            )
+            self.fields['documents_autres_reunions'].queryset = (
+                DocumentReunion.objects
+                .filter(reunion__debut__date__gte=limite)
+                .exclude(reunion=reunion)
+                .exclude(fichier='')
+                .select_related('reunion')
+                .order_by('-reunion__debut', 'nom')
             )

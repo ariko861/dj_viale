@@ -203,6 +203,14 @@ class ReunionAdmin(ModelAdmin):
                             'application/octet-stream',
                         )
 
+                for doc in form.cleaned_data['documents_autres_reunions']:
+                    with doc.fichier.open('rb') as f:
+                        email.attach(
+                            doc.fichier.name.split('/')[-1],
+                            f.read(),
+                            'application/octet-stream',
+                        )
+
                 email.send()
                 EmailEnvoye.objects.create(
                     reunion=reunion,
