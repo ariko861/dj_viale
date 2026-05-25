@@ -34,6 +34,7 @@ services:
       SMTP_HOST: ${SMTP_HOST:-localhost}
       SMTP_PORT: ${SMTP_PORT:-25}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-False}
+      SMTP_USE_SSL: ${SMTP_USE_SSL:-False}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
     volumes:
