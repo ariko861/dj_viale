@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from django.urls import reverse_lazy
 import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -35,7 +36,100 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 # Application definition
 
 UNFOLD = {
+    'SITE_TITLE': 'Gestion ASBL la Viale Lozère - Quartier Gallet',
+    'SITE_HEADER': 'Gestion ASBL la Viale Lozère - Quartier Gallet',
+    'SITE_SYMBOL': 'handshake',
+    'SHOW_BACK_BUTTON': True,
     'DASHBOARD_CALLBACK': 'core.checks.dashboard_callback',
+    'SIDEBAR': {
+        'show_search': True,
+        'navigation': [
+            {
+                'title': 'Réunions',
+                'separator': False,
+                'items': [
+                    {
+                        'title': 'Réunions',
+                        'icon': 'event',
+                        'link': reverse_lazy('admin:core_reunion_changelist'),
+                        'permission': lambda request: request.user.has_perm('core.view_reunion'),
+                    },
+                    {
+                        'title': 'Emails envoyés',
+                        'icon': 'mail',
+                        'link': reverse_lazy('admin:core_emailenvoye_changelist'),
+                        'permission': lambda request: request.user.has_perm('core.view_emailenvoye'),
+                    },
+                ],
+            },
+            {
+                'title': 'Membres',
+                'separator': True,
+                'items': [
+                    {
+                        'title': 'Membres',
+                        'icon': 'group',
+                        'link': reverse_lazy('admin:core_membre_changelist'),
+                        'permission': lambda request: request.user.has_perm('core.view_membre'),
+                    },
+                    {
+                        'title': 'Organes',
+                        'icon': 'corporate_fare',
+                        'link': reverse_lazy('admin:core_organe_changelist'),
+                        'permission': lambda request: request.user.has_perm('core.view_organe'),
+                    },
+                ],
+            },
+            {
+                'title': 'Documents',
+                'separator': True,
+                'items': [
+                    {
+                        'title': 'Modèles de documents',
+                        'icon': 'description',
+                        'link': reverse_lazy('admin:core_modeledocument_changelist'),
+                        'permission': lambda request: request.user.has_perm('core.view_modeledocument'),
+                    },
+                    {
+                        'title': 'Tags',
+                        'icon': 'label',
+                        'link': reverse_lazy('admin:core_tagdocument_changelist'),
+                        'permission': lambda request: request.user.has_perm('core.view_tagdocument'),
+                    },
+                ],
+            },
+            {
+                'title': 'Administration',
+                'separator': True,
+                'items': [
+                    {
+                        'title': 'Utilisateurs',
+                        'icon': 'manage_accounts',
+                        'link': reverse_lazy('admin:core_user_changelist'),
+                        'permission': lambda request: request.user.has_perm('core.view_user'),
+                    },
+                    {
+                        'title': 'Groupes',
+                        'icon': 'groups',
+                        'link': reverse_lazy('admin:auth_group_changelist'),
+                        'permission': lambda request: request.user.has_perm('auth.view_group'),
+                    },
+                    {
+                        'title': 'Adresses',
+                        'icon': 'location_on',
+                        'link': reverse_lazy('admin:core_adresse_changelist'),
+                        'permission': lambda request: request.user.has_perm('core.view_adresse'),
+                    },
+                    {
+                        'title': 'Configuration',
+                        'icon': 'tune',
+                        'link': reverse_lazy('admin:constance_config_changelist'),
+                        'permission': lambda request: request.user.has_perm('constance.change_config'),
+                    },
+                ],
+            },
+        ],
+    },
 }
 
 INSTALLED_APPS = [
