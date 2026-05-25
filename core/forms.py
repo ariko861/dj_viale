@@ -2,7 +2,7 @@ from django import forms
 
 from unfold.contrib.forms.widgets import WysiwygWidget
 
-from core.models import Membre, ModeleDocument
+from core.models import DocumentReunion, Membre, ModeleDocument
 
 
 class EnvoyerEmailForm(forms.Form):
@@ -24,8 +24,14 @@ class EnvoyerEmailForm(forms.Form):
         initial=True,
     )
     documents = forms.ModelMultipleChoiceField(
-        label='Documents joints',
+        label='Modèles de documents joints',
         queryset=ModeleDocument.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+    documents_reunion = forms.ModelMultipleChoiceField(
+        label='Documents de la réunion joints',
+        queryset=DocumentReunion.objects.none(),
         required=False,
         widget=forms.CheckboxSelectMultiple,
     )
@@ -38,6 +44,9 @@ class EnvoyerEmailForm(forms.Form):
                 .order_by('nom', 'prenom')
             )
             self.fields['documents'].queryset = (
-                ModeleDocument.objects.filter(organes=reunion.organe)
+                ModeleDocument.objects.filter(organes=reunion.organe, disponible_par_mail=True)
                 .select_related('tag')
+            )
+            self.fields['documents_reunion'].queryset = (
+                DocumentReunion.objects.filter(reunion=reunion)
             )

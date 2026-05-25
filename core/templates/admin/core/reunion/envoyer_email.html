@@ -94,6 +94,20 @@
   </div>
 
   <div class="field-row">
+    <label class="field-label">{{ form.documents_reunion.label }}</label>
+    {% if form.documents_reunion.field.queryset.exists %}
+      <ul class="checkbox-list">
+        {% for choice in form.documents_reunion %}
+          <li>{{ choice }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="help">Aucun document attaché à cette réunion.</p>
+    {% endif %}
+    {% if form.documents_reunion.errors %}<ul class="errorlist">{% for e in form.documents_reunion.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+
+  <div class="field-row">
     <label class="field-label">{{ form.documents.label }}</label>
     {% if form.documents.field.queryset.exists %}
       <ul class="checkbox-list">
@@ -102,7 +116,7 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p class="help">Aucun document configuré pour cet organe.</p>
+      <p class="help">Aucun modèle de document configuré pour cet organe.</p>
     {% endif %}
     {% if form.documents.errors %}<ul class="errorlist">{% for e in form.documents.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
   </div>

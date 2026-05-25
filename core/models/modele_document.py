@@ -15,6 +15,11 @@ class ModeleDocument(models.Model):
 
     fichier = models.FileField(upload_to='modeles_documents/')
 
+    disponible_par_mail = models.BooleanField(
+        default=True,
+        help_text="Si décoché, ce modèle n'apparaîtra pas dans le formulaire d'envoi d'email.",
+    )
+
     organes = models.ManyToManyField(
         'Organe',
         related_name='modeles_documents',

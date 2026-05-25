@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-dj_asbl}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - dj_asbl_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
@@ -30,10 +30,10 @@ services:
       SMTP_PORT: ${SMTP_PORT:-25}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-False}
     volumes:
-      - media:/app/media
+      - dj_asbl_media:/app/media
     ports:
       - "${PORT:-8000}:8000"
 
 volumes:
-  postgres_data:
-  media:
+  dj_asbl_postgres_data:
+  dj_asbl_media:

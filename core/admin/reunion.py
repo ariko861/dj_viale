@@ -135,6 +135,14 @@ class ReunionAdmin(ModelAdmin):
                         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                     )
 
+                for doc in form.cleaned_data['documents_reunion']:
+                    with doc.fichier.open('rb') as f:
+                        email.attach(
+                            doc.fichier.name.split('/')[-1],
+                            f.read(),
+                            'application/octet-stream',
+                        )
+
                 email.send()
                 messages.success(request, f'Email envoyé à {len(destinataires)} destinataire(s).')
                 return redirect(reverse('admin:core_reunion_change', args=[pk]))
