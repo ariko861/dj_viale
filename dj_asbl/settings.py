@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'unfold',
     'unfold.contrib.constance',
     'unfold.contrib.forms',
+    'unfold.contrib.import_export',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'constance',
+    'import_export',
     'core',
 ]
 

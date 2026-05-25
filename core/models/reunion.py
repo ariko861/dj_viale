@@ -15,6 +15,7 @@ class Reunion(models.Model):
         'Adresse',
         on_delete=models.SET_NULL,
         null=True,
+        limit_choices_to={'est_lieu_reunion': True},
     )
 
     membres = models.ManyToManyField(

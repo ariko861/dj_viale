@@ -1,8 +1,10 @@
 import io
+import zipfile
 
 from constance import config
 from django.contrib import admin, messages
 from django.core.mail import EmailMessage
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import path, reverse
 from django.utils.html import format_html, mark_safe
@@ -60,7 +62,9 @@ class ReunionAdmin(ModelAdmin):
 
     inlines = [DocumentsInline, MembresInline, ProcurationsInline]
     readonly_fields = ['documents_disponibles']
-    actions_detail = ['telecharger_ical', 'envoyer_email']
+    actions_detail = ['telecharger_ical', 'envoyer_email', 'telecharger_documents_zip']
+    actions = ['telecharger_documents_zip_action']
+
 
     def get_urls(self):
         urls = super().get_urls()
@@ -95,6 +99,37 @@ class ReunionAdmin(ModelAdmin):
     @action(description='Télécharger iCal', url_path='ical')
     def telecharger_ical(self, request, object_id):
         return redirect(reverse('reunion-ical', args=[object_id]))
+
+    @action(description='Télécharger les documents (ZIP)', url_path='zip')
+    def telecharger_documents_zip(self, request, object_id):
+        reunion = get_object_or_404(Reunion.objects.select_related('organe'), pk=object_id)
+        return self._zip_reunions([reunion], f"documents_{reunion.debut.strftime('%Y-%m-%d')}.zip")
+
+    @admin.action(description='Télécharger les documents (ZIP)')
+    def telecharger_documents_zip_action(self, request, queryset):
+        reunions = queryset.select_related('organe').prefetch_related('documents')
+        return self._zip_reunions(list(reunions), 'documents.zip')
+
+    def _zip_reunions(self, reunions, filename):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for reunion in reunions:
+                dossier = (
+                    f"{reunion.organe.nom}/"
+                    f"{reunion.debut.strftime('%Y-%m-%d')} - {reunion.organe.nom_court or reunion.organe.nom}"
+                )
+                docs = DocumentReunion.objects.filter(reunion=reunion).exclude(fichier='')
+                for doc in docs:
+                    nom_fichier = doc.nom or doc.fichier.name.split('/')[-1]
+                    try:
+                        with doc.fichier.open('rb') as f:
+                            zf.writestr(f"{dossier}/{nom_fichier}", f.read())
+                    except FileNotFoundError:
+                        pass
+        buf.seek(0)
+        response = HttpResponse(buf, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
     @action(description='Envoyer un email', url_path='email')
     def envoyer_email(self, request, object_id):

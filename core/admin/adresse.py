@@ -6,4 +6,4 @@ from core.models import Adresse
 
 @admin.register(Adresse)
 class AdresseAdmin(ModelAdmin):
-    pass
+    list_filter = ['est_lieu_reunion']
