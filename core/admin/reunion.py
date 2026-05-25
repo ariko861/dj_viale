@@ -1,6 +1,7 @@
 import io
 import zipfile
 
+from constance import config
 from django.contrib import admin, messages
 from django.core.mail import EmailMessage
 from django.http import HttpResponse
@@ -13,7 +14,7 @@ from unfold.decorators import action
 
 from core.docx import generer_document
 from core.forms import EnvoyerEmailForm
-from core.models import DocumentReunion, Membre, ModeleDocument, Procuration, Reunion
+from core.models import DocumentReunion, EmailEnvoye, Membre, ModeleDocument, Procuration, Reunion
 
 
 class DocumentsInline(TabularInline):
@@ -42,6 +43,31 @@ class MembresInline(TabularInline):
     tab = True
 
 
+class EmailsEnvoyesInline(TabularInline):
+    model = EmailEnvoye
+    extra = 0
+    tab = True
+    can_delete = False
+    fields = ['envoye_le', 'sujet', 'destinataires_liste', 'reply_to', 'voir_corps']
+    readonly_fields = ['envoye_le', 'sujet', 'destinataires_liste', 'reply_to', 'voir_corps']
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def destinataires_liste(self, obj):
+        return ', '.join(obj.destinataires)
+
+    destinataires_liste.short_description = 'Destinataires'
+
+    def voir_corps(self, obj):
+        if not obj.pk:
+            return '—'
+        url = reverse('admin:core_emailenvoye_change', args=[obj.pk])
+        return format_html('<a href="{}">Voir le corps</a>', url)
+
+    voir_corps.short_description = 'Corps'
+
+
 class ProcurationsInline(TabularInline):
     model = Procuration
     extra = 0
@@ -59,7 +85,7 @@ class ProcurationsInline(TabularInline):
 @admin.register(Reunion)
 class ReunionAdmin(ModelAdmin):
 
-    inlines = [DocumentsInline, MembresInline, ProcurationsInline]
+    inlines = [DocumentsInline, MembresInline, ProcurationsInline, EmailsEnvoyesInline]
     readonly_fields = ['documents_disponibles']
     actions_detail = ['telecharger_ical', 'envoyer_email', 'telecharger_documents_zip']
     actions = ['telecharger_documents_zip_action']
@@ -178,6 +204,13 @@ class ReunionAdmin(ModelAdmin):
                         )
 
                 email.send()
+                EmailEnvoye.objects.create(
+                    reunion=reunion,
+                    sujet=form.cleaned_data['sujet'],
+                    corps=form.cleaned_data['corps'],
+                    destinataires=destinataires,
+                    reply_to=reply_to_value or '',
+                )
                 messages.success(request, f'Email envoyé à {len(destinataires)} destinataire(s).')
                 return redirect(reverse('admin:core_reunion_change', args=[pk]))
         else:
