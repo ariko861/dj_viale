@@ -18,3 +18,5 @@ wheels/
 
 # Environnement
 .env
+
+compose.override.yml
