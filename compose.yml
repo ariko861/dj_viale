@@ -1,7 +1,9 @@
 services:
-  dj_asbl_db:
+  db:
     image: postgres:17
     restart: unless-stopped
+    networks:
+      - dj_asbl
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -14,14 +16,16 @@ services:
       timeout: 5s
       retries: 5
 
-  dj_asbl_web:
+  web:
     build: .
     restart: unless-stopped
+    networks:
+      - dj_asbl
     depends_on:
-      dj_asbl_db:
+      db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@dj_asbl_db:5432/${POSTGRES_DB:-dj_asbl}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-dj_asbl}
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: "True"
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost}
@@ -39,3 +43,6 @@ services:
 volumes:
   dj_asbl_postgres_data:
   dj_asbl_media:
+
+networks:
+  dj_asbl:
