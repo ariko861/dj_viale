@@ -10,6 +10,11 @@ class EnvoyerEmailForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
     )
     sujet = forms.CharField(label='Sujet', max_length=255)
+    reply_to = forms.EmailField(
+        label='Répondre à (reply-to)',
+        required=False,
+        help_text='Laisser vide pour ne pas définir de reply-to.',
+    )
     corps = forms.CharField(label='Message', widget=forms.Textarea(attrs={'rows': 12}))
     documents = forms.ModelMultipleChoiceField(
         label='Documents joints',

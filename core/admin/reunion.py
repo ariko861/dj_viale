@@ -1,5 +1,6 @@
 import io
 
+from constance import config
 from django.contrib import admin, messages
 from django.core.mail import EmailMessage
 from django.shortcuts import get_object_or_404, redirect, render
@@ -88,10 +89,12 @@ class ReunionAdmin(ModelAdmin):
             form = EnvoyerEmailForm(request.POST, reunion=reunion)
             if form.is_valid():
                 destinataires = [m.email for m in form.cleaned_data['destinataires']]
+                reply_to_value = form.cleaned_data.get('reply_to')
                 email = EmailMessage(
                     subject=form.cleaned_data['sujet'],
                     body=form.cleaned_data['corps'],
                     to=destinataires,
+                    reply_to=[reply_to_value] if reply_to_value else [],
                 )
                 for modele in form.cleaned_data['documents']:
                     contenu = self._generer_document(reunion, modele)
@@ -110,6 +113,7 @@ class ReunionAdmin(ModelAdmin):
                 initial={
                     'destinataires': list(reunion.membres.values_list('pk', flat=True)),
                     'sujet': f'[{reunion.organe}] {reunion.debut.strftime("%d/%m/%Y")}',
+                    'reply_to': config.REPLY_TO_EMAIL,
                 },
             )
 

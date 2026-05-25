@@ -17,6 +17,7 @@
   .email-form .field-row { margin-bottom: 1.5rem; }
   .email-form label.field-label { display: block; font-weight: 600; margin-bottom: .4rem; }
   .email-form input[type=text],
+  .email-form input[type=email],
   .email-form textarea {
     width: 100%;
     padding: .5rem .75rem;
@@ -61,6 +62,13 @@
     <label class="field-label" for="{{ form.sujet.id_for_label }}">{{ form.sujet.label }}</label>
     {{ form.sujet }}
     {% if form.sujet.errors %}<ul class="errorlist">{% for e in form.sujet.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+
+  <div class="field-row">
+    <label class="field-label" for="{{ form.reply_to.id_for_label }}">{{ form.reply_to.label }}</label>
+    {{ form.reply_to }}
+    {% if form.reply_to.help_text %}<p class="help">{{ form.reply_to.help_text }}</p>{% endif %}
+    {% if form.reply_to.errors %}<ul class="errorlist">{% for e in form.reply_to.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
   </div>
 
   <div class="field-row">
