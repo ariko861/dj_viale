@@ -12,7 +12,27 @@ from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
 from core.forms import EnvoyerEmailForm
-from core.models import Membre, ModeleDocument, Procuration, Reunion
+from core.models import DocumentReunion, Membre, ModeleDocument, Procuration, Reunion
+
+
+class DocumentsInline(TabularInline):
+    model = DocumentReunion
+    extra = 0
+    tab = True
+    fields = ['nom', 'fichier', 'public', 'lien_public']
+    readonly_fields = ['lien_public']
+
+    def get_formset(self, request, obj=None, **kwargs):
+        self._request = request
+        return super().get_formset(request, obj, **kwargs)
+
+    def lien_public(self, obj):
+        if not obj.pk or not obj.public:
+            return '—'
+        url = self._request.build_absolute_uri(reverse('document-reunion', args=[obj.token]))
+        return format_html('<a href="{}" target="_blank">{}</a>', url, url)
+
+    lien_public.short_description = 'Lien public'
 
 
 class MembresInline(TabularInline):
@@ -38,7 +58,7 @@ class ProcurationsInline(TabularInline):
 @admin.register(Reunion)
 class ReunionAdmin(ModelAdmin):
 
-    inlines = [MembresInline, ProcurationsInline]
+    inlines = [DocumentsInline, MembresInline, ProcurationsInline]
     readonly_fields = ['documents_disponibles']
     actions_detail = ['telecharger_ical', 'envoyer_email']
 

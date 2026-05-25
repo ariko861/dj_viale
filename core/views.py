@@ -1,11 +1,21 @@
 import io
 
-from django.http import HttpResponse
+from django.contrib.auth.views import redirect_to_login
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from docxtpl import DocxTemplate
 from icalendar import Calendar, Event
 
-from core.models import ModeleDocument, Reunion
+from core.models import DocumentReunion, ModeleDocument, Reunion
+
+
+def document_reunion(request, token):
+    doc = get_object_or_404(DocumentReunion, token=token)
+    if not doc.public and not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path())
+    if not doc.fichier:
+        raise Http404
+    return FileResponse(doc.fichier.open('rb'), as_attachment=True, filename=doc.fichier.name.split('/')[-1])
 
 
 def reunion_ical(request, pk):

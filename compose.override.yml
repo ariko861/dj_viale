@@ -1,0 +1,10 @@
+services:
+  db:
+    container_name: ${CONTAINER_PREFIX:-dj_asbl}_db
+
+  web:
+    container_name: ${CONTAINER_PREFIX:-dj_asbl}_web
+    environment: {}
+    # Exemple :
+    # environment:
+    #   MA_VARIABLE: valeur
