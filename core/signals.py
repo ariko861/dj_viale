@@ -1,4 +1,4 @@
-from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -12,7 +12,7 @@ def set_fin_adhesion(sender, instance, created, **kwargs):
         return
     duree = instance.organe.duree_mandat
     if duree > 0:
-        sender.objects.filter(pk=instance.pk).update(fin=instance.debut + timedelta(days=duree))
+        sender.objects.filter(pk=instance.pk).update(fin=instance.debut + relativedelta(years=duree))
 
 
 @receiver(post_save, sender='core.Reunion')

@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import path, reverse
 from django.utils.html import format_html, mark_safe
 from docxtpl import DocxTemplate
+from icalendar import Calendar, Event
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
@@ -96,6 +97,15 @@ class ReunionAdmin(ModelAdmin):
                     to=destinataires,
                     reply_to=[reply_to_value] if reply_to_value else [],
                 )
+                email.content_subtype = 'html'
+
+                if form.cleaned_data.get('joindre_ical'):
+                    email.attach(
+                        f"reunion-{reunion.pk}.ics",
+                        self._generer_ical(reunion),
+                        'text/calendar',
+                    )
+
                 for modele in form.cleaned_data['documents']:
                     contenu = self._generer_document(reunion, modele)
                     nom = f"{modele.nom} - {reunion.debut.strftime('%Y-%m-%d')}.docx"
@@ -104,6 +114,7 @@ class ReunionAdmin(ModelAdmin):
                         contenu,
                         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                     )
+
                 email.send()
                 messages.success(request, f'Email envoyé à {len(destinataires)} destinataire(s).')
                 return redirect(reverse('admin:core_reunion_change', args=[pk]))
@@ -114,6 +125,7 @@ class ReunionAdmin(ModelAdmin):
                     'destinataires': list(reunion.membres.values_list('pk', flat=True)),
                     'sujet': f'[{reunion.organe}] {reunion.debut.strftime("%d/%m/%Y")}',
                     'reply_to': config.REPLY_TO_EMAIL,
+                    'joindre_ical': True,
                 },
             )
 
@@ -125,6 +137,21 @@ class ReunionAdmin(ModelAdmin):
             'title': 'Envoyer un email',
         }
         return render(request, 'admin/core/reunion/envoyer_email.html', context)
+
+    def _generer_ical(self, reunion):
+        cal = Calendar()
+        cal.add('prodid', '-//dj-asbl//FR')
+        cal.add('version', '2.0')
+        event = Event()
+        event.add('summary', str(reunion))
+        event.add('dtstart', reunion.debut)
+        event.add('dtend', reunion.fin or reunion.debut)
+        event.add('uid', f'reunion-{reunion.pk}@dj-asbl')
+        if reunion.adresse:
+            location = f"{reunion.adresse.adresse}, {reunion.adresse.code_postal} {reunion.adresse.ville}"
+            event.add('location', location)
+        cal.add_component(event)
+        return cal.to_ical()
 
     def _generer_document(self, reunion, modele):
         membres = (

@@ -11,6 +11,11 @@
 </div>
 {% endblock %}
 
+{% block extrahead %}
+  {{ block.super }}
+  {{ form.media }}
+{% endblock %}
+
 {% block content %}
 <style>
   .email-form { max-width: 800px; }
@@ -32,6 +37,8 @@
   .checkbox-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .4rem; }
   .checkbox-list li label { font-weight: normal; display: flex; align-items: center; gap: .5rem; cursor: pointer; }
   .checkbox-list li input[type=checkbox] { width: auto; }
+  .inline-check label { font-weight: normal; display: flex; align-items: center; gap: .5rem; cursor: pointer; }
+  .inline-check input[type=checkbox] { width: auto; }
   .submit-row { display: flex; gap: 1rem; align-items: center; margin-top: 2rem; }
   .submit-row input[type=submit] { padding: .6rem 1.5rem; background: #2563eb; color: white; border: none; border-radius: .375rem; font-size: .95rem; cursor: pointer; }
   .submit-row input[type=submit]:hover { background: #1d4ed8; }
@@ -72,9 +79,18 @@
   </div>
 
   <div class="field-row">
-    <label class="field-label" for="{{ form.corps.id_for_label }}">{{ form.corps.label }}</label>
+    <label class="field-label">{{ form.corps.label }}</label>
     {{ form.corps }}
     {% if form.corps.errors %}<ul class="errorlist">{% for e in form.corps.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+
+  <div class="field-row">
+    <div class="inline-check">
+      <label for="{{ form.joindre_ical.id_for_label }}">
+        {{ form.joindre_ical }} {{ form.joindre_ical.label }}
+      </label>
+    </div>
+    {% if form.joindre_ical.errors %}<ul class="errorlist">{% for e in form.joindre_ical.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
   </div>
 
   <div class="field-row">

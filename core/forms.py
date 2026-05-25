@@ -1,5 +1,7 @@
 from django import forms
 
+from unfold.contrib.forms.widgets import WysiwygWidget
+
 from core.models import Membre, ModeleDocument
 
 
@@ -15,7 +17,12 @@ class EnvoyerEmailForm(forms.Form):
         required=False,
         help_text='Laisser vide pour ne pas définir de reply-to.',
     )
-    corps = forms.CharField(label='Message', widget=forms.Textarea(attrs={'rows': 12}))
+    corps = forms.CharField(label='Message', widget=WysiwygWidget)
+    joindre_ical = forms.BooleanField(
+        label="Joindre l'invitation calendrier (iCal)",
+        required=False,
+        initial=True,
+    )
     documents = forms.ModelMultipleChoiceField(
         label='Documents joints',
         queryset=ModeleDocument.objects.none(),
