@@ -1,5 +1,6 @@
 import io
 import zipfile
+from datetime import date
 
 from constance import config
 from django.contrib import admin, messages
@@ -13,6 +14,7 @@ from icalendar import Calendar, Event
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
+from core.docx import make_jinja_env
 from core.forms import EnvoyerEmailForm
 from core.models import DocumentReunion, Membre, ModeleDocument, Procuration, Reunion
 
@@ -233,9 +235,10 @@ class ReunionAdmin(ModelAdmin):
             'heure': reunion.debut.strftime('%H:%M'),
             'secretaire': secretaire,
             'president': president,
+            'today': date.today(),
         }
         tpl = DocxTemplate(modele.fichier.path)
-        tpl.render(context)
+        tpl.render(context, jinja_env=make_jinja_env())
         buf = io.BytesIO()
         tpl.save(buf)
         buf.seek(0)

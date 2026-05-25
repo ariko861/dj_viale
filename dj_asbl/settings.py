@@ -138,7 +138,7 @@ DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', default='asbl@localhost')
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'fr-fr'
 
 TIME_ZONE = 'Europe/Brussels'
 

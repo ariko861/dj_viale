@@ -1,5 +1,7 @@
 import io
 
+from datetime import date
+
 from constance import config
 from django.contrib.auth.views import redirect_to_login
 from django.http import FileResponse, Http404, HttpResponse
@@ -7,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from docxtpl import DocxTemplate
 from icalendar import Calendar, Event
 
+from core.docx import make_jinja_env
 from core.models import DocumentReunion, Membre, ModeleDocument, Reunion
 
 
@@ -71,10 +74,11 @@ def reunion_document(request, reunion_pk, modele_pk):
         'heure': reunion.debut.strftime('%H:%M'),
         'secretaire': secretaire,
         'president': president,
+        'today': date.today(),
     }
 
     tpl = DocxTemplate(modele.fichier.path)
-    tpl.render(context)
+    tpl.render(context, jinja_env=make_jinja_env())
 
     buffer = io.BytesIO()
     tpl.save(buffer)
