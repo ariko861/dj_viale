@@ -1,20 +1,17 @@
 import io
 import zipfile
-from datetime import date
 
-from constance import config
 from django.contrib import admin, messages
 from django.core.mail import EmailMessage
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import path, reverse
 from django.utils.html import format_html, mark_safe
-from docxtpl import DocxTemplate
 from icalendar import Calendar, Event
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
-from core.docx import make_jinja_env
+from core.docx import generer_document
 from core.forms import EnvoyerEmailForm
 from core.models import DocumentReunion, Membre, ModeleDocument, Procuration, Reunion
 
@@ -164,7 +161,7 @@ class ReunionAdmin(ModelAdmin):
                     )
 
                 for modele in form.cleaned_data['documents']:
-                    contenu = self._generer_document(reunion, modele)
+                    contenu = generer_document(reunion, modele)
                     nom = f"{modele.nom} - {reunion.debut.strftime('%Y-%m-%d')}.docx"
                     email.attach(
                         nom,
@@ -217,31 +214,3 @@ class ReunionAdmin(ModelAdmin):
             event.add('location', location)
         cal.add_component(event)
         return cal.to_ical()
-
-    def _generer_document(self, reunion, modele):
-        membres = (
-            reunion.membrereunion_set
-            .select_related('membre')
-            .order_by('membre__nom', 'membre__prenom')
-        )
-        secretaire = Membre.objects.filter(pk=config.SECRETAIRE_ID).first() if config.SECRETAIRE_ID else None
-        president = Membre.objects.filter(pk=config.PRESIDENT_ID).first() if config.PRESIDENT_ID else None
-        context = {
-            'reunion': reunion,
-            'organe': reunion.organe,
-            'adresse': reunion.adresse,
-            'membres': list(membres),
-            'date': reunion.debut.strftime('%d/%m/%Y'),
-            'heure': reunion.debut.strftime('%H:%M'),
-            'debut': reunion.debut,
-            'fin': reunion.fin,
-            'secretaire': secretaire,
-            'president': president,
-            'today': date.today(),
-        }
-        tpl = DocxTemplate(modele.fichier.path)
-        tpl.render(context, jinja_env=make_jinja_env())
-        buf = io.BytesIO()
-        tpl.save(buf)
-        buf.seek(0)
-        return buf.read()

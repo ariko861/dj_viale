@@ -1,16 +1,10 @@
-import io
-
-from datetime import date
-
-from constance import config
 from django.contrib.auth.views import redirect_to_login
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404
-from docxtpl import DocxTemplate
 from icalendar import Calendar, Event
 
-from core.docx import make_jinja_env
-from core.models import DocumentReunion, Membre, ModeleDocument, Reunion
+from core.docx import generer_document
+from core.models import DocumentReunion, ModeleDocument, Reunion
 
 
 def document_reunion(request, token):
@@ -56,39 +50,9 @@ def reunion_document(request, reunion_pk, modele_pk):
         pk=modele_pk,
     )
 
-    membres = (
-        reunion.membrereunion_set
-        .select_related('membre')
-        .order_by('membre__nom', 'membre__prenom')
-    )
-
-    secretaire = Membre.objects.filter(pk=config.SECRETAIRE_ID).first() if config.SECRETAIRE_ID else None
-    president = Membre.objects.filter(pk=config.PRESIDENT_ID).first() if config.PRESIDENT_ID else None
-
-    context = {
-        'reunion': reunion,
-        'organe': reunion.organe,
-        'adresse': reunion.adresse,
-        'membres': list(membres),
-        'date': reunion.debut.strftime('%d/%m/%Y'),
-        'heure': reunion.debut.strftime('%H:%M'),
-        'debut': reunion.debut,
-        'fin': reunion.fin,
-        'secretaire': secretaire,
-        'president': president,
-        'today': date.today(),
-    }
-
-    tpl = DocxTemplate(modele.fichier.path)
-    tpl.render(context, jinja_env=make_jinja_env())
-
-    buffer = io.BytesIO()
-    tpl.save(buffer)
-    buffer.seek(0)
-
     nom_fichier = f"{modele.nom} - {reunion.debut.strftime('%Y-%m-%d')}.docx"
     response = HttpResponse(
-        buffer.read(),
+        generer_document(reunion, modele),
         content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     )
     response['Content-Disposition'] = f'attachment; filename="{nom_fichier}"'
