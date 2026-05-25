@@ -222,6 +222,8 @@ class ReunionAdmin(ModelAdmin):
             .select_related('membre')
             .order_by('membre__nom', 'membre__prenom')
         )
+        secretaire = Membre.objects.filter(pk=config.SECRETAIRE_ID).first() if config.SECRETAIRE_ID else None
+        president = Membre.objects.filter(pk=config.PRESIDENT_ID).first() if config.PRESIDENT_ID else None
         context = {
             'reunion': reunion,
             'organe': reunion.organe,
@@ -229,6 +231,8 @@ class ReunionAdmin(ModelAdmin):
             'membres': list(membres),
             'date': reunion.debut.strftime('%d/%m/%Y'),
             'heure': reunion.debut.strftime('%H:%M'),
+            'secretaire': secretaire,
+            'president': president,
         }
         tpl = DocxTemplate(modele.fichier.path)
         tpl.render(context)

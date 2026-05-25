@@ -5,6 +5,21 @@ from unfold.contrib.forms.widgets import WysiwygWidget
 from core.models import DocumentReunion, Membre, ModeleDocument
 
 
+class MembreChoiceField(forms.TypedChoiceField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('coerce', int)
+        kwargs.setdefault('empty_value', 0)
+        kwargs['choices'] = self._get_choices
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def _get_choices():
+        return [(0, '—')] + [
+            (m.pk, str(m))
+            for m in Membre.objects.order_by('nom', 'prenom')
+        ]
+
+
 class EnvoyerEmailForm(forms.Form):
     destinataires = forms.ModelMultipleChoiceField(
         label='Destinataires',

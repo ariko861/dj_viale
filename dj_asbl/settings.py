@@ -114,8 +114,14 @@ AUTH_PASSWORD_VALIDATORS = [
 
 CONSTANCE_BACKEND = 'constance.backends.database.DatabaseBackend'
 
+CONSTANCE_ADDITIONAL_FIELDS = {
+    'membre_select': ['core.forms.MembreChoiceField', {}],
+}
+
 CONSTANCE_CONFIG = {
     'REPLY_TO_EMAIL': ('', "Adresse email de réponse par défaut (reply-to) pour les envois depuis l'admin."),
+    'SECRETAIRE_ID': (0, "Membre secrétaire de l'ASBL (disponible dans les modèles de documents)", 'membre_select'),
+    'PRESIDENT_ID': (0, "Membre président de l'ASBL (disponible dans les modèles de documents)", 'membre_select'),
 }
 
 # Email

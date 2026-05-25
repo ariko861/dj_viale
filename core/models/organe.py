@@ -15,6 +15,13 @@ class Organe(models.Model):
         help_text="Préposition à utiliser devant le nom dans les documents (ex: \"au\", \"à l'\", \"à la\").",
     )
 
+    pronom = models.CharField(
+        max_length=10,
+        blank=True,
+        default='',
+        help_text="Article défini devant le nom (ex: \"le\", \"la\", \"l'\").",
+    )
+
     duree_mandat = models.PositiveIntegerField(default=0, help_text="Durée par défaut d'un mandat, en années (0 = pas de date de fin)")
 
     membres = models.ManyToManyField(

@@ -1,12 +1,13 @@
 import io
 
+from constance import config
 from django.contrib.auth.views import redirect_to_login
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from docxtpl import DocxTemplate
 from icalendar import Calendar, Event
 
-from core.models import DocumentReunion, ModeleDocument, Reunion
+from core.models import DocumentReunion, Membre, ModeleDocument, Reunion
 
 
 def document_reunion(request, token):
@@ -58,6 +59,9 @@ def reunion_document(request, reunion_pk, modele_pk):
         .order_by('membre__nom', 'membre__prenom')
     )
 
+    secretaire = Membre.objects.filter(pk=config.SECRETAIRE_ID).first() if config.SECRETAIRE_ID else None
+    president = Membre.objects.filter(pk=config.PRESIDENT_ID).first() if config.PRESIDENT_ID else None
+
     context = {
         'reunion': reunion,
         'organe': reunion.organe,
@@ -65,6 +69,8 @@ def reunion_document(request, reunion_pk, modele_pk):
         'membres': list(membres),
         'date': reunion.debut.strftime('%d/%m/%Y'),
         'heure': reunion.debut.strftime('%H:%M'),
+        'secretaire': secretaire,
+        'president': president,
     }
 
     tpl = DocxTemplate(modele.fichier.path)
