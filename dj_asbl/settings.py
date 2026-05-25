@@ -34,6 +34,10 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 
 # Application definition
 
+UNFOLD = {
+    'DASHBOARD_CALLBACK': 'core.checks.dashboard_callback',
+}
+
 INSTALLED_APPS = [
     'unfold',
     'unfold.contrib.constance',
