@@ -49,6 +49,8 @@
   .copy-link { margin-left: .5rem; font-size: .75rem; color: #2563eb; cursor: pointer; text-decoration: none; white-space: nowrap; }
   .copy-link:hover { text-decoration: underline; }
   .copy-link.copied { color: #16a34a; }
+  .toggle-all { font-size: .8rem; color: #2563eb; cursor: pointer; background: none; border: none; padding: 0; margin-bottom: .4rem; text-decoration: underline; }
+  .toggle-all:hover { color: #1d4ed8; }
 </style>
 
 <h1>Envoyer un email — {{ reunion }}</h1>
@@ -65,6 +67,9 @@
       {% if field.field.widget.allow_multiple_selected %}
         <fieldset class="field-fieldset">
           <legend class="field-label">{{ field.label }}</legend>
+          {% if field.html_name == 'destinataires' %}
+            <button type="button" class="toggle-all" data-target="{{ field.id_for_label }}">Tout cocher / décocher</button>
+          {% endif %}
           {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
           {{ field }}
         </fieldset>
@@ -88,6 +93,15 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('button.toggle-all').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var fieldset = btn.closest('fieldset');
+      var checkboxes = fieldset.querySelectorAll('input[type=checkbox]');
+      var allChecked = Array.from(checkboxes).every(function (cb) { return cb.checked; });
+      checkboxes.forEach(function (cb) { cb.checked = !allChecked; });
+    });
+  });
+
   document.querySelectorAll('input[data-public-url]').forEach(function (input) {
     var url = input.getAttribute('data-public-url');
     var label = input.closest('label');
