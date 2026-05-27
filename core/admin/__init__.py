@@ -5,3 +5,4 @@ from .reunion import ReunionAdmin
 from .modele_document import ModeleDocumentAdmin, TagDocumentAdmin
 from .user import User
 from .email_envoye import EmailEnvoyeAdmin
+from .document_global import DocumentGlobalAdmin  # registers DocumentReunion standalone admin

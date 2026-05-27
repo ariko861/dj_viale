@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from django import forms
+from django.db.models import Q
 from django.urls import reverse
 
 from unfold.contrib.forms.widgets import WysiwygWidget
@@ -80,6 +81,13 @@ class EnvoyerEmailForm(forms.Form):
         widget=DocumentPublicCheckboxSelect,
         help_text='Documents des réunions sur les 2 dernières années.',
     )
+    documents_globaux = forms.ModelMultipleChoiceField(
+        label='Documents globaux joints',
+        queryset=DocumentReunion.objects.none(),
+        required=False,
+        widget=DocumentPublicCheckboxSelect,
+        help_text='Documents non liés à une réunion spécifique.',
+    )
 
     def __init__(self, *args, reunion=None, request=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -105,6 +113,9 @@ class EnvoyerEmailForm(forms.Form):
                 .order_by('-reunion__debut', 'nom')
             )
             self.fields['documents_autres_reunions'].queryset = autres_qs
+            self.fields['documents_globaux'].queryset = (
+                DocumentReunion.objects.filter(reunion__isnull=True).exclude(fichier='').order_by('nom')
+            )
 
             if request:
                 public_urls = {
@@ -112,8 +123,10 @@ class EnvoyerEmailForm(forms.Form):
                         reverse('document-reunion', args=[doc.token])
                     )
                     for doc in DocumentReunion.objects.filter(
-                        reunion__organe=reunion.organe, public=True
+                        Q(reunion__organe=reunion.organe) | Q(reunion__isnull=True),
+                        public=True,
                     ).only('pk', 'token')
                 }
                 self.fields['documents_reunion'].widget.public_urls = public_urls
                 self.fields['documents_autres_reunions'].widget.public_urls = public_urls
+                self.fields['documents_globaux'].widget.public_urls = public_urls

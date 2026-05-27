@@ -4,7 +4,10 @@ from django.db import models
 
 
 class DocumentReunion(models.Model):
-    reunion = models.ForeignKey('Reunion', on_delete=models.CASCADE, related_name='documents')
+    reunion = models.ForeignKey(
+        'Reunion', on_delete=models.CASCADE, related_name='documents',
+        null=True, blank=True,
+    )
     nom = models.CharField(max_length=255, blank=True)
     fichier = models.FileField(upload_to='documents/reunions/')
     public = models.BooleanField(

@@ -43,6 +43,7 @@ UNFOLD = {
     'DASHBOARD_CALLBACK': 'core.checks.dashboard_callback',
     'SIDEBAR': {
         'show_search': True,
+        'show_all_applications': True,
         'navigation': [
             {
                 'title': 'Réunions',
@@ -84,6 +85,12 @@ UNFOLD = {
                 'title': 'Documents',
                 'separator': True,
                 'items': [
+                    {
+                        'title': 'Documents',
+                        'icon': 'folder',
+                        'link': reverse_lazy('admin:core_documentreunion_changelist'),
+                        'permission': lambda request: request.user.has_perm('core.view_documentreunion'),
+                    },
                     {
                         'title': 'Modèles de documents',
                         'icon': 'description',
@@ -134,6 +141,7 @@ UNFOLD = {
 
 INSTALLED_APPS = [
     'unfold',
+    'unfold.contrib.filters',
     'unfold.contrib.constance',
     'unfold.contrib.forms',
     'unfold.contrib.import_export',
