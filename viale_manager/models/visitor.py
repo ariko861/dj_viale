@@ -19,7 +19,6 @@ class Visitors(models.Model):
         return f"{str(self.nom).upper()} {self.prenom}"
 
     class Meta:
-        managed = False
-        db_table = 'visitors'
+        db_table = '"viale_manager"."visitors"'
         verbose_name = 'Visiteur'
         ordering = ['nom', 'prenom']

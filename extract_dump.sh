@@ -1,0 +1,1 @@
+docker exec viale_manager_db pg_dump -Fc -U viale viale_manager > viale_dump.dump

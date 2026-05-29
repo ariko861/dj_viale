@@ -20,5 +20,4 @@ class Reservations(models.Model):
     nom_groupe = models.CharField(max_length=255, blank=True, null=True, db_comment='Nom du groupe')
 
     class Meta:
-        managed = False
-        db_table = 'reservations'
+        db_table = '"viale_manager"."reservations"'

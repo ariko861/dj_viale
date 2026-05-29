@@ -12,5 +12,4 @@ class AutoMails(models.Model):
     updated_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        managed = False
-        db_table = 'auto_mails'
+        db_table = '"viale_manager"."auto_mails"'

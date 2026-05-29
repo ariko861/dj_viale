@@ -1,8 +1,5 @@
 from django.db import models
 
-from .reservation import Reservations
-from .room import Rooms
-
 
 class Sejours(models.Model):
 
@@ -30,5 +27,4 @@ class Sejours(models.Model):
     price = models.FloatField(blank=True, null=True)
 
     class Meta:
-        managed = False
-        db_table = 'sejours'
+        db_table = '"viale_manager"."sejours"'

@@ -10,5 +10,4 @@ class Messages(models.Model):
     title = models.CharField(max_length=255)
 
     class Meta:
-        managed = False
-        db_table = 'messages'
+        db_table = '"viale_manager"."messages"'
