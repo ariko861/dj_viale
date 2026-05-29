@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -81,6 +82,12 @@ class Sejours(models.Model):
             return None
         return self.nuitees * self.price
 
+
+    def clean(self):
+        if self.departure_date and self.departure_date <= self.arrival_date:
+            raise ValidationError(
+                {'departure_date': "La date de départ doit être après la date d'arrivée."}
+            )
 
     def __str__(self):
         return f"{self.visitor} — {self.arrival_date}"

@@ -36,6 +36,7 @@ class ReservationSection(TemplateSection):
 
 class SejourAdmin(ModelAdmin):
     list_display = ['reservation_label', 'visitor', 'arrival_date', 'departure_date', 'nuitees', 'room', 'price', 'confirmed', 'total']
+    list_display_links = ['visitor']
     list_filter = [PeriodeSejourFilter, 'confirmed', 'remove_from_stats']
     search_fields = ['visitor__nom', 'visitor__prenom', 'reservation__nom_groupe', 'reservation__contact_email']
     autocomplete_fields = ['room']
