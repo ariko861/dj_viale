@@ -154,6 +154,7 @@ INSTALLED_APPS = [
     'constance',
     'import_export',
     'core',
+    'viale_manager',
 ]
 
 MIDDLEWARE = [
