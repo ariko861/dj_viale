@@ -2,6 +2,7 @@ from django.db import models
 
 
 class Visitors(models.Model):
+
     id = models.BigAutoField(primary_key=True)
     nom = models.CharField(max_length=255)
     prenom = models.CharField(max_length=255)
@@ -14,6 +15,11 @@ class Visitors(models.Model):
     deleted_at = models.DateTimeField(blank=True, null=True)
     remarques = models.TextField(blank=True, null=True)
 
+    def __str__(self):
+        return f"{str(self.nom).upper()} {self.prenom}"
+
     class Meta:
         managed = False
         db_table = 'visitors'
+        verbose_name = 'Visiteur'
+        ordering = ['nom', 'prenom']

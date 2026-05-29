@@ -17,7 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+from viale_manager.admin import viale_admin
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accueil/', viale_admin.urls),
     path('', include('core.urls')),
 ]

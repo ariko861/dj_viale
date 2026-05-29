@@ -205,7 +205,7 @@ def _pg(**kwargs):
 
 DATABASES = {
     'default': _pg(),
-    'viale': _pg(OPTIONS={'options': '-c search_path=viale_manager'}),
+    'viale_manager': _pg(OPTIONS={'options': '-c search_path=viale_manager'}),
 }
 
 DATABASE_ROUTERS = ['dj_asbl.router.DBRouter']
