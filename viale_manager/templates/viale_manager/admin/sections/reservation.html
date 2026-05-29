@@ -1,0 +1,46 @@
+<div class="flex flex-wrap gap-6 p-2 text-sm">
+
+  {% if instance.reservation.nom_groupe %}
+  <div>
+    <span class="font-medium text-gray-500">Groupe</span>
+    <p class="mt-0.5">{{ instance.reservation.nom_groupe }}</p>
+  </div>
+  {% endif %}
+
+  {% if instance.reservation.contact_email %}
+  <div>
+    <span class="font-medium text-gray-500">Email</span>
+    <p class="mt-0.5">
+      <a href="mailto:{{ instance.reservation.contact_email }}" class="text-primary-600 hover:underline">
+        {{ instance.reservation.contact_email }}
+      </a>
+    </p>
+  </div>
+  {% endif %}
+
+  {% if instance.reservation.contact_phone %}
+  <div>
+    <span class="font-medium text-gray-500">Téléphone</span>
+    <p class="mt-0.5">{{ instance.reservation.contact_phone }}</p>
+  </div>
+  {% endif %}
+
+  {% if instance.reservation.remarques_visiteur %}
+  <div class="w-full">
+    <span class="font-medium text-gray-500">Remarques visiteur</span>
+    <p class="mt-0.5 whitespace-pre-line">{{ instance.reservation.remarques_visiteur }}</p>
+  </div>
+  {% endif %}
+
+  {% if instance.reservation.remarques_accueil %}
+  <div class="w-full">
+    <span class="font-medium text-gray-500">Remarques accueil</span>
+    <p class="mt-0.5 whitespace-pre-line">{{ instance.reservation.remarques_accueil }}</p>
+  </div>
+  {% endif %}
+
+  {% if not instance.reservation.contact_email and not instance.reservation.contact_phone and not instance.reservation.remarques_visiteur and not instance.reservation.remarques_accueil %}
+  <p class="text-gray-400 italic">Aucune information disponible.</p>
+  {% endif %}
+
+</div>

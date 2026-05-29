@@ -1,18 +1,59 @@
+from datetime import date
+
 from django.db import models
 
 
+class SejoursQuerySet(models.QuerySet):
+
+    def actifs(self):
+        """Séjours non terminés : departure_date >= aujourd'hui ou indéterminée."""
+        today = date.today()
+        return self.filter(
+            models.Q(departure_date__gte=today) | models.Q(departure_date__isnull=True)
+        )
+
+    def presents(self):
+        """Séjours en cours aujourd'hui."""
+        today = date.today()
+        return self.filter(arrival_date__lte=today).actifs()
+
+    def arrivent_aujourd_hui(self):
+        return self.filter(arrival_date=date.today())
+
+    def partent_aujourd_hui(self):
+        return self.filter(departure_date=date.today())
+
+    def futurs(self):
+        return self.filter(arrival_date__gt=date.today())
+
+    def termines(self):
+        return self.filter(departure_date__lt=date.today())
+
+    def pour_periode(self, start_str, end_str):
+        """Séjours qui chevauchent la période [start_str, end_str] (format YYYY-MM-DD)."""
+        return self.filter(
+            arrival_date__lt=end_str,
+        ).filter(
+            models.Q(departure_date__gte=start_str) | models.Q(departure_date__isnull=True)
+        )
+
+
 class Sejours(models.Model):
+
+    objects = SejoursQuerySet.as_manager()
 
     id = models.BigAutoField(primary_key=True)
 
     reservation = models.ForeignKey(
         'Reservations',
-        models.DO_NOTHING
+        models.DO_NOTHING,
+        verbose_name='reservation',
     )
 
     visitor = models.ForeignKey(
         'Visitors',
-        models.CASCADE
+        models.CASCADE,
+        verbose_name='Visiteur'
     )
 
     confirmed = models.BooleanField(verbose_name="confirmé", default=False)
@@ -46,3 +87,5 @@ class Sejours(models.Model):
 
     class Meta:
         db_table = '"viale_manager"."sejours"'
+
+        verbose_name = "séjour"

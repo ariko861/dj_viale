@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -13,9 +13,7 @@ def _get_sejours(start_str, end_str):
     return (
         Sejours.objects
         .select_related('visitor', 'reservation')
-        .filter(arrival_date__lt=end_str[:10])
-        .filter(departure_date__gte=start_str[:10])
-        .exclude(departure_date__isnull=True)
+        .pour_periode(start_str[:10], end_str[:10])
         .order_by('arrival_date', 'visitor__nom')
     )
 
@@ -50,7 +48,7 @@ class CalendrierEventsView(View):
                 'resourceId': str(s.id),
                 'title': str(s.visitor),
                 'start': s.arrival_date.isoformat(),
-                'end': (s.departure_date + timedelta(days=1)).isoformat(),
+                'end': ((s.departure_date + timedelta(days=1)) if s.departure_date else date(date.today().year + 1, 1, 1)).isoformat(),
                 'backgroundColor': color,
                 'borderColor': color,
                 'textColor': '#1a1a1a',

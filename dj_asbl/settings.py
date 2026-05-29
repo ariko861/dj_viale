@@ -169,11 +169,6 @@ UNFOLD_VIALE = {
                         'link': reverse_lazy('viale_manager:viale_manager_sejours_changelist'),
                     },
                     {
-                        'title': 'Réservations',
-                        'icon': 'calendar_month',
-                        'link': reverse_lazy('viale_manager:viale_manager_reservations_changelist'),
-                    },
-                    {
                         'title': 'Visiteurs',
                         'icon': 'group',
                         'link': reverse_lazy('viale_manager:viale_manager_visitors_changelist'),
