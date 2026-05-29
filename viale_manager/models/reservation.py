@@ -19,5 +19,10 @@ class Reservations(models.Model):
     groupe = models.BooleanField(db_comment='Est-ce une réservation pour un groupe, active formulaire simplifié')
     nom_groupe = models.CharField(max_length=255, blank=True, null=True, db_comment='Nom du groupe')
 
+    @property
+    def color(self) -> str:
+        hue = self.link_token.int % 360
+        return f'hsl({hue}, 55%, 78%)'
+
     class Meta:
         db_table = '"viale_manager"."reservations"'

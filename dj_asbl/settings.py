@@ -149,8 +149,19 @@ UNFOLD_VIALE = {
         'show_all_applications': True,
         'navigation': [
             {
-                'title': 'Séjours',
+                'title': 'Calendrier',
                 'separator': False,
+                'items': [
+                    {
+                        'title': 'Calendrier',
+                        'icon': 'calendar_month',
+                        'link': reverse_lazy('viale_manager:viale_manager_calendrier'),
+                    },
+                ],
+            },
+            {
+                'title': 'Séjours',
+                'separator': True,
                 'items': [
                     {
                         'title': 'Séjours',

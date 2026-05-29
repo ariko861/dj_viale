@@ -2,11 +2,11 @@
 set -e
 
 DUMP="./viale_dump.dump"
-PGHOST=localhost
-PGPORT=5996
-PGUSER=postgres
-PGPASSWORD=password
-PGDATABASE=dj_asbl
+PGHOST="${POSTGRES_HOST:-localhost}"
+PGPORT="${POSTGRES_PORT:-5996}"
+PGUSER="${POSTGRES_USER:-postgres}"
+PGPASSWORD="${POSTGRES_PASSWORD:?Variable POSTGRES_PASSWORD non définie}"
+PGDATABASE="${POSTGRES_DB:-dj_asbl}"
 export PGPASSWORD
 
 PSQL="psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE"

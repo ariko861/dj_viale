@@ -1,0 +1,84 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}Calendrier des séjours{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js"></script>
+<style>
+  #calendrier-wrapper {
+    padding: 1rem 0;
+  }
+  #calendar {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+  }
+  .fc .fc-toolbar-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+  .fc-datagrid-cell-cushion {
+    font-size: 0.85rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="calendrier-wrapper">
+  <div id="calendar"></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+    schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
+    initialView: 'resourceTimelineWeek',
+    locale: 'fr',
+
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'resourceTimelineDay,resourceTimelineWeek,resourceTimelineMonth',
+    },
+    views: {
+      resourceTimelineDay: {
+        buttonText: 'Jour',
+        slotDuration: { hours: 1 },
+        slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+      },
+      resourceTimelineWeek: {
+        buttonText: 'Semaine',
+        slotDuration: { days: 1 },
+        slotLabelFormat: [{ weekday: 'short', day: '2-digit', month: '2-digit' }],
+      },
+      resourceTimelineMonth: {
+        buttonText: 'Mois',
+        slotDuration: { days: 1 },
+        slotLabelFormat: { day: '2-digit' },
+      },
+    },
+
+    resourceAreaHeaderContent: 'Visiteur',
+    resourceAreaWidth: '180px',
+
+    resources: '/accueil/calendrier/resources/',
+    events: '/accueil/calendrier/events/',
+    refetchResourcesOnNavigate: true,
+
+    // Au premier rendu, FullCalendar appelle resources sans dates.
+    // datesSet est déclenché une fois la vue initialisée avec la vraie plage.
+    datesSet: function () {
+      calendar.refetchResources();
+    },
+
+    height: 'auto',
+    slotMinWidth: 40,
+    nowIndicator: true,
+  });
+
+  calendar.render();
+});
+</script>
+{% endblock %}

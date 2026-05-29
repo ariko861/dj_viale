@@ -13,10 +13,11 @@ class SejoursInline(TabularInline):
 
 
 class SejourAdmin(ModelAdmin):
-    list_display = ['visitor', 'arrival_date', 'departure_date', 'room', 'price', 'confirmed']
+    list_display = ['visitor', 'arrival_date', 'departure_date', 'nuitees', 'room', 'price', 'confirmed', 'total']
     list_filter = ['confirmed', 'arrival_date', 'remove_from_stats']
     search_fields = ['visitor__nom', 'visitor__prenom']
     autocomplete_fields = ['visitor', 'room', 'reservation']
+    list_select_related = ['visitor', 'room']
     date_hierarchy = 'arrival_date'
     readonly_fields = ['created_at', 'updated_at']
 
