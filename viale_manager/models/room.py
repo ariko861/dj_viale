@@ -16,5 +16,8 @@ class Rooms(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)
 
+    def __str__(self):
+        return self.name
+
     class Meta:
         db_table = '"viale_manager"."rooms"'

@@ -8,5 +8,10 @@ class MaisonneesPlanning(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)
 
+    houses = models.ManyToManyField(
+        'Houses',
+        through='HousesInMaisonneesPlanning',
+    )
+
     class Meta:
         db_table = '"viale_manager"."maisonnees_planning"'

@@ -36,9 +36,17 @@ echo "=== Étape 2 : import des données ==="
 for TABLE in "${TABLES[@]}"; do
     echo -n "  -> $TABLE ... "
     # Extrait les données de la table, remplace le schéma public par viale_manager
-    pg_restore --data-only -t "$TABLE" -f - "$DUMP" \
-        | sed 's/COPY public\./COPY viale_manager./g' \
-        | $PSQL -q
+    # Pour assignations_maisonnees : filtre les lignes avec house_id=0 (données invalides Laravel)
+    if [ "$TABLE" = "assignations_maisonnees" ]; then
+        pg_restore --data-only -t "$TABLE" -f - "$DUMP" \
+            | sed 's/COPY public\./COPY viale_manager./g' \
+            | awk '/^COPY/{print; next} /^\\\./{print; next} $3 != "0"' \
+            | $PSQL -q
+    else
+        pg_restore --data-only -t "$TABLE" -f - "$DUMP" \
+            | sed 's/COPY public\./COPY viale_manager./g' \
+            | $PSQL -q
+    fi
     echo "OK"
 done
 

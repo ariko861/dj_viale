@@ -26,5 +26,8 @@ class Sejours(models.Model):
 
     price = models.FloatField(blank=True, null=True)
 
+    def __str__(self):
+        return f"{self.visitor} — {self.arrival_date}"
+
     class Meta:
         db_table = '"viale_manager"."sejours"'

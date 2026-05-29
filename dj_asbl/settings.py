@@ -139,6 +139,67 @@ UNFOLD = {
     },
 }
 
+UNFOLD_VIALE = {
+    'SITE_TITLE': 'Viale Manager',
+    'SITE_HEADER': 'Viale — Gestion des séjours',
+    'SITE_SYMBOL': 'home',
+    'SHOW_BACK_BUTTON': True,
+    'SIDEBAR': {
+        'show_search': True,
+        'show_all_applications': True,
+        'navigation': [
+            {
+                'title': 'Séjours',
+                'separator': False,
+                'items': [
+                    {
+                        'title': 'Séjours',
+                        'icon': 'bed',
+                        'link': reverse_lazy('viale_manager:viale_manager_sejours_changelist'),
+                    },
+                    {
+                        'title': 'Réservations',
+                        'icon': 'calendar_month',
+                        'link': reverse_lazy('viale_manager:viale_manager_reservations_changelist'),
+                    },
+                    {
+                        'title': 'Visiteurs',
+                        'icon': 'group',
+                        'link': reverse_lazy('viale_manager:viale_manager_visitors_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': 'Hébergement',
+                'separator': True,
+                'items': [
+                    {
+                        'title': 'Maisons',
+                        'icon': 'cottage',
+                        'link': reverse_lazy('viale_manager:viale_manager_houses_changelist'),
+                    },
+                    {
+                        'title': 'Chambres',
+                        'icon': 'meeting_room',
+                        'link': reverse_lazy('viale_manager:viale_manager_rooms_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': 'Configuration',
+                'separator': True,
+                'items': [
+                    {
+                        'title': 'Profils de prix',
+                        'icon': 'euro',
+                        'link': reverse_lazy('viale_manager:viale_manager_profiles_changelist'),
+                    },
+                ],
+            },
+        ],
+    },
+}
+
 INSTALLED_APPS = [
     'unfold',
     'unfold.contrib.filters',
