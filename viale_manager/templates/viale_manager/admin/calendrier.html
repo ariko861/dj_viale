@@ -9,6 +9,14 @@
   #calendrier-wrapper {
     padding: 1rem 0;
   }
+  #calendrier-compteur {
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    color: #6b7280;
+  }
+  #calendrier-compteur strong {
+    color: #111827;
+  }
   #calendar {
     background: white;
     border-radius: 0.5rem;
@@ -26,6 +34,7 @@
 
 {% block content %}
 <div id="calendrier-wrapper">
+  <div id="calendrier-compteur"></div>
   <div id="calendar"></div>
 </div>
 
@@ -71,6 +80,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // datesSet est déclenché une fois la vue initialisée avec la vraie plage.
     datesSet: function () {
       calendar.refetchResources();
+    },
+
+    resourcesSet: function (resources) {
+      const n = resources.length;
+      const label = n <= 1 ? 'séjour' : 'séjours';
+      document.getElementById('calendrier-compteur').innerHTML =
+        `<strong>${n}</strong> ${label} sur cette période`;
     },
 
     height: 'auto',
