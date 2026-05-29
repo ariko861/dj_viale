@@ -190,11 +190,24 @@ WSGI_APPLICATION = 'dj_asbl.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+
+def _pg(**kwargs):
+    return {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env.str('POSTGRES_DB', default='dj_asbl'),
+        'USER': env.str('POSTGRES_USER', default='postgres'),
+        'PASSWORD': env.str('POSTGRES_PASSWORD', default=''),
+        'HOST': env.str('POSTGRES_HOST', default='localhost'),
+        'PORT': env.str('POSTGRES_PORT', default='5432'),
+        **kwargs,
+    }
 
 DATABASES = {
-    'default': env.db('DATABASE_URL'),
+    'default': _pg(),
+    'viale': _pg(OPTIONS={'options': '-c search_path=viale_manager'}),
 }
+
+DATABASE_ROUTERS = ['dj_asbl.router.DBRouter']
 
 
 # Password validation
