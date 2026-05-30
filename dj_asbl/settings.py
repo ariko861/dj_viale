@@ -216,6 +216,11 @@ UNFOLD_VIALE = {
                         'icon': 'forum',
                         'link': reverse_lazy('viale_manager:viale_manager_messages_changelist'),
                     },
+                    {
+                        'title': 'Emails automatiques',
+                        'icon': 'schedule_send',
+                        'link': reverse_lazy('viale_manager:viale_manager_automails_changelist'),
+                    },
                 ],
             },
         ],

@@ -4,3 +4,4 @@ from .sejour import SejourAdmin, ReservationAdmin
 from .room import HouseAdmin, RoomAdmin
 from .profile import ProfileAdmin
 from .message import MessageAdmin
+from .auto_mail import AutoMailAdmin

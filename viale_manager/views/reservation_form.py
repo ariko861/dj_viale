@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views import View
 
+from viale_manager.mailing import send_confirmation_auto_mails
 from viale_manager.models import Messages, Profiles, Reservations, Sejours, Visitors
 
 
@@ -171,6 +172,7 @@ class ReservationFormView(View):
             contact_phone = cleaned[0]['phone']
         remarques = (payload.get('remarques') or '').strip()
 
+        was_confirmed = bool(reservation.confirmed_at)
         now = timezone.now()
         with transaction.atomic():
             # Ré-soumission : on repart des séjours soumis.
@@ -202,6 +204,11 @@ class ReservationFormView(View):
             reservation.save(update_fields=[
                 'contact_email', 'contact_phone', 'remarques_visiteur', 'confirmed_at', 'updated_at',
             ])
+
+        # Emails automatiques « confirmation » : uniquement à la première confirmation.
+        if not was_confirmed:
+            recipients = {contact_email} | {c['email'] for c in cleaned}
+            send_confirmation_auto_mails(sorted(e for e in recipients if e))
 
         return JsonResponse({'ok': True})
 
