@@ -201,6 +201,11 @@ UNFOLD_VIALE = {
                         'icon': 'euro',
                         'link': reverse_lazy('viale_manager:viale_manager_profiles_changelist'),
                     },
+                    {
+                        'title': 'Messages du formulaire',
+                        'icon': 'forum',
+                        'link': reverse_lazy('viale_manager:viale_manager_messages_changelist'),
+                    },
                 ],
             },
         ],

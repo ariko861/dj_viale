@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views import View
 
-from viale_manager.models import Profiles, Reservations, Sejours, Visitors
+from viale_manager.models import Messages, Profiles, Reservations, Sejours, Visitors
 
 
 def _parse_date(value):
@@ -54,8 +54,12 @@ class ReservationFormView(View):
         dates = [s.arrival_date for s in sejours if s.arrival_date]
         departs = [s.departure_date for s in sejours if s.departure_date]
 
+        messages = Messages.objects.order_by('id')
+
         context = {
             'reservation': reservation,
+            'messages_link': messages.filter(type=Messages.TypeMessage.LINK),
+            'messages_confirmation': messages.filter(type=Messages.TypeMessage.CONFIRMATION),
             'readonly': bool(reservation.confirmed_at) and not reservation.authorize_edition,
             'profiles': [
                 {'id': p.id, 'name': p.name, 'price': p.price, 'is_default': p.is_default}

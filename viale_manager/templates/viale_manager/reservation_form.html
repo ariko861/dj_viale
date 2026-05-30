@@ -15,10 +15,26 @@
 
 <div
   x-data="reservationWizard()"
-  class="max-w-2xl mx-auto px-4 py-8"
+  class="max-w-2xl lg:max-w-5xl mx-auto px-4 py-8"
 >
   <h1 class="text-2xl font-semibold mb-1">Formulaire de réservation</h1>
   <p class="text-gray-500 mb-6">La Viale — quartier Gallet</p>
+
+  <div class="lg:flex lg:gap-8 lg:items-start">
+
+  <!-- Messages d'introduction (type « link ») — colonne de gauche sur grand écran -->
+  {% if messages_link %}
+  <aside x-show="step === 1" class="space-y-2 mb-4 lg:space-y-3 lg:mb-0 lg:w-64 lg:flex-shrink-0">
+    {% for msg in messages_link %}
+    <div class="bg-white rounded-xl shadow-sm p-3 lg:p-4 text-xs lg:text-sm">
+      {% if msg.title %}<h2 class="font-medium text-gray-900 mb-0.5 lg:mb-1">{{ msg.title }}</h2>{% endif %}
+      <div class="prose prose-sm max-w-none text-gray-600 leading-snug [&_a]:text-emerald-600 [&_a]:underline [&_a]:font-medium hover:[&_a]:text-emerald-700">{{ msg.message|safe }}</div>
+    </div>
+    {% endfor %}
+  </aside>
+  {% endif %}
+
+  <div class="lg:flex-1 lg:min-w-0 lg:max-w-2xl">
 
   {% if readonly %}
   <div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 mb-6">
@@ -176,7 +192,17 @@
     <div class="text-5xl mb-4">✓</div>
     <h2 class="text-xl font-medium mb-2">Réservation confirmée</h2>
     <p class="text-gray-500">Merci, votre réservation a bien été enregistrée.</p>
+
+    {% for msg in messages_confirmation %}
+    <div class="mt-6 text-left border-t border-gray-100 pt-6">
+      {% if msg.title %}<h3 class="font-medium text-gray-900 mb-2">{{ msg.title }}</h3>{% endif %}
+      <div class="prose prose-sm max-w-none text-gray-700 [&_a]:text-emerald-600 [&_a]:underline [&_a]:font-medium hover:[&_a]:text-emerald-700">{{ msg.message|safe }}</div>
+    </div>
+    {% endfor %}
   </div>
+
+  </div><!-- /colonne principale -->
+  </div><!-- /wrapper deux colonnes -->
 </div>
 
 <script>

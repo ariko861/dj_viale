@@ -10,8 +10,8 @@ class Visitors(models.Model):
     confirmed = models.BooleanField()
     email = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=255, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    updated_at = models.DateTimeField(blank=True, null=True, auto_now=True)
     deleted_at = models.DateTimeField(blank=True, null=True)
     remarques = models.TextField(blank=True, null=True)
 
