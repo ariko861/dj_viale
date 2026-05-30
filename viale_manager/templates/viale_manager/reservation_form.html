@@ -1,0 +1,316 @@
+{% load static %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Réservation — La Viale</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800">
+
+{% csrf_token %}
+{{ profiles|json_script:"data-profiles" }}
+{{ sejours_initiaux|json_script:"data-sejours" }}
+
+<div
+  x-data="reservationWizard()"
+  class="max-w-2xl mx-auto px-4 py-8"
+>
+  <h1 class="text-2xl font-semibold mb-1">Formulaire de réservation</h1>
+  <p class="text-gray-500 mb-6">La Viale — quartier Gallet</p>
+
+  {% if readonly %}
+  <div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 mb-6">
+    Cette réservation a déjà été confirmée et ne peut plus être modifiée.
+  </div>
+  {% endif %}
+
+  <!-- Indicateur d'étapes -->
+  <div class="flex items-center gap-2 mb-8" x-show="!done">
+    <template x-for="(label, i) in stepLabels" :key="i">
+      <div class="flex items-center gap-2">
+        <div
+          class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition"
+          :class="step >= i + 1 ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-500'"
+          x-text="i + 1"
+        ></div>
+        <span class="text-sm" :class="step === i + 1 ? 'font-medium text-gray-900' : 'text-gray-500'" x-text="label"></span>
+        <div x-show="i < stepLabels.length - 1" class="w-8 h-px bg-gray-300"></div>
+      </div>
+    </template>
+  </div>
+
+  <div x-show="globalError" class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm" x-text="globalError"></div>
+
+  <form @submit.prevent="submit()" x-show="!done" class="bg-white rounded-xl shadow-sm p-6">
+
+    <!-- Étape 1 : dates -->
+    <div x-show="step === 1" class="space-y-4">
+      <h2 class="text-lg font-medium">Dates du séjour</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <label class="block">
+          <span class="text-sm text-gray-600">Date d'arrivée</span>
+          <input type="date" x-model="arrival" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+        </label>
+        <label class="block">
+          <span class="text-sm text-gray-600">Date de départ</span>
+          <input type="date" x-model="departure" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+        </label>
+      </div>
+      <p x-show="errors.dates" class="text-red-600 text-sm" x-text="errors.dates"></p>
+    </div>
+
+    <!-- Étape 2 : séjours -->
+    <div x-show="step === 2" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-medium">Visiteurs</h2>
+        <span class="text-sm text-gray-400" x-text="`${sejours.length} / ${maxVisitors}`"></span>
+      </div>
+      <p x-show="errors.sejours" class="text-red-600 text-sm" x-text="errors.sejours"></p>
+
+      <template x-for="(sejour, idx) in sejours" :key="idx">
+        <div class="border border-gray-200 rounded-lg p-4 space-y-3 relative">
+          <button type="button" @click="removeSejour(idx)" x-show="sejours.length > 1"
+                  class="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-sm">✕</button>
+
+          <div class="relative" @click.outside="sejour.showSuggestions = false">
+            <label class="text-sm text-gray-600">Email (pour retrouver un visiteur existant)</label>
+            <input type="email" x-model="sejour.email" @input.debounce.300ms="searchVisitors(idx)" @focus="sejour.showSuggestions = sejour.suggestions.length > 0"
+                   class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2" placeholder="ex. dupont@mail.be">
+            <div x-show="sejour.showSuggestions && sejour.suggestions.length"
+                 class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+              <template x-for="v in sejour.suggestions" :key="v.id">
+                <button type="button" @click="pickVisitor(idx, v)"
+                        class="block w-full text-left px-3 py-2 hover:bg-emerald-50 text-sm">
+                  <span class="font-medium" x-text="v.nom + ' ' + v.prenom"></span>
+                  <span class="text-gray-500" x-text="' — ' + v.email"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <div x-show="sejour.visitorId" class="text-xs text-emerald-700 bg-emerald-50 rounded px-2 py-1 inline-block">
+            Visiteur existant sélectionné — <button type="button" class="underline" @click="clearVisitor(idx)">créer un nouveau visiteur</button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-sm text-gray-600">Nom</span>
+              <input type="text" x-model="sejour.nom" :disabled="!!sejour.visitorId"
+                     class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2 disabled:bg-gray-100">
+            </label>
+            <label class="block">
+              <span class="text-sm text-gray-600">Prénom</span>
+              <input type="text" x-model="sejour.prenom" :disabled="!!sejour.visitorId"
+                     class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2 disabled:bg-gray-100">
+            </label>
+          </div>
+
+          <label class="block">
+            <span class="text-sm text-gray-600">Téléphone</span>
+            <input type="text" x-model="sejour.phone" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+          </label>
+
+          <div class="grid grid-cols-3 gap-3">
+            <label class="block">
+              <span class="text-sm text-gray-600">Profil de prix</span>
+              <select x-model.number="sejour.profileId" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+                <template x-for="p in profiles" :key="p.id">
+                  <option :value="p.id" x-text="`${p.name} (${p.price} €)`"></option>
+                </template>
+              </select>
+            </label>
+            <label class="block">
+              <span class="text-sm text-gray-600">Arrivée</span>
+              <input type="date" x-model="sejour.arrival" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+            </label>
+            <label class="block">
+              <span class="text-sm text-gray-600">Départ</span>
+              <input type="date" x-model="sejour.departure" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+            </label>
+          </div>
+
+          <p x-show="errors['sejour_' + idx]" class="text-red-600 text-sm" x-text="formatLigne(errors['sejour_' + idx])"></p>
+        </div>
+      </template>
+
+      <button type="button" @click="addSejour()" x-show="sejours.length < maxVisitors"
+              class="w-full border-2 border-dashed border-gray-300 rounded-lg py-3 text-gray-500 hover:border-emerald-400 hover:text-emerald-600 transition">
+        + Ajouter un séjour
+      </button>
+    </div>
+
+    <!-- Étape 3 : contact & remarques -->
+    <div x-show="step === 3" class="space-y-4">
+      <h2 class="text-lg font-medium">Contact &amp; remarques</h2>
+      <label class="block">
+        <span class="text-sm text-gray-600">Email de contact</span>
+        <input type="email" x-model="contactEmail" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+      </label>
+      <label class="block">
+        <span class="text-sm text-gray-600">Téléphone de contact</span>
+        <input type="tel" x-model="contactPhone" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+      </label>
+      <label class="block">
+        <span class="text-sm text-gray-600">Remarques</span>
+        <textarea x-model="remarques" rows="4" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2"></textarea>
+      </label>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex justify-between mt-6 pt-4 border-t border-gray-100">
+      <button type="button" @click="prev()" x-show="step > 1"
+              class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">Précédent</button>
+      <span x-show="step === 1"></span>
+      <button type="button" @click="next()" x-show="step < 3"
+              class="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Suivant</button>
+      <button type="submit" x-show="step === 3" :disabled="submitting"
+              class="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+              x-text="submitting ? 'Envoi…' : 'Confirmer la réservation'"></button>
+    </div>
+  </form>
+
+  <!-- Confirmation -->
+  <div x-show="done" class="bg-white rounded-xl shadow-sm p-8 text-center">
+    <div class="text-5xl mb-4">✓</div>
+    <h2 class="text-xl font-medium mb-2">Réservation confirmée</h2>
+    <p class="text-gray-500">Merci, votre réservation a bien été enregistrée.</p>
+  </div>
+</div>
+
+<script>
+function reservationWizard() {
+  const readonly = {{ readonly|yesno:"true,false" }};
+  const profiles = JSON.parse(document.getElementById('data-profiles').textContent);
+  const sejoursInitiaux = JSON.parse(document.getElementById('data-sejours').textContent);
+  const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const defaultProfileId = (profiles.find(p => p.is_default) || profiles[0] || {}).id || null;
+
+  function buildSejour(s) {
+    return {
+      visitorId: s ? s.visitorId : null,
+      nom: s ? s.nom : '',
+      prenom: s ? s.prenom : '',
+      email: s ? s.email : '',
+      phone: s ? s.phone : '',
+      profileId: defaultProfileId,
+      arrival: s ? s.arrival : '',
+      departure: s ? s.departure : '',
+      suggestions: [],
+      showSuggestions: false,
+    };
+  }
+
+  return {
+    step: 1,
+    stepLabels: ['Dates', 'Visiteurs', 'Contact'],
+    profiles,
+    maxVisitors: {{ max_visitors }},
+    maxDaysChange: {{ max_days_change }},
+    allMailsRequired: {{ all_mails_required|yesno:"true,false" }},
+    arrival: '{{ arrival_initial }}',
+    departure: '{{ departure_initial }}',
+    sejours: sejoursInitiaux.length ? sejoursInitiaux.map(buildSejour) : [buildSejour(null)],
+    contactEmail: '{{ contact_email_initial|escapejs }}',
+    contactPhone: '{{ contact_phone_initial|escapejs }}',
+    remarques: `{{ remarques_initial|escapejs }}`,
+    errors: {},
+    globalError: '',
+    submitting: false,
+    done: false,
+
+    next() {
+      this.errors = {};
+      if (this.step === 1) {
+        if (!this.arrival || !this.departure) { this.errors.dates = "Les deux dates sont obligatoires."; return; }
+        if (this.departure <= this.arrival) { this.errors.dates = "Le départ doit être après l'arrivée."; return; }
+        // Pré-remplit les dates des séjours encore vides.
+        this.sejours.forEach(s => {
+          if (!s.arrival) s.arrival = this.arrival;
+          if (!s.departure) s.departure = this.departure;
+        });
+      }
+      if (this.step === 2 && this.sejours.length) {
+        if (!this.contactEmail) this.contactEmail = this.sejours[0].email;
+        if (!this.contactPhone) this.contactPhone = this.sejours[0].phone;
+      }
+      this.step++;
+    },
+    prev() { this.errors = {}; this.step--; },
+
+    addSejour() {
+      const s = buildSejour(null);
+      s.arrival = this.arrival;
+      s.departure = this.departure;
+      this.sejours.push(s);
+    },
+    removeSejour(i) { this.sejours.splice(i, 1); },
+
+    async searchVisitors(idx) {
+      const s = this.sejours[idx];
+      s.visitorId = null;
+      if (!s.email || s.email.length < 3) { s.suggestions = []; s.showSuggestions = false; return; }
+      const url = "{% url 'reservation_visitor_search' token=reservation.link_token %}?q=" + encodeURIComponent(s.email);
+      try {
+        const resp = await fetch(url);
+        s.suggestions = await resp.json();
+        s.showSuggestions = s.suggestions.length > 0;
+      } catch (e) { s.suggestions = []; }
+    },
+    pickVisitor(idx, v) {
+      const s = this.sejours[idx];
+      s.visitorId = v.id;
+      s.nom = v.nom; s.prenom = v.prenom; s.email = v.email; s.phone = v.phone;
+      s.showSuggestions = false;
+    },
+    clearVisitor(idx) {
+      const s = this.sejours[idx];
+      s.visitorId = null; s.nom = ''; s.prenom = ''; s.phone = '';
+    },
+
+    formatLigne(ligne) {
+      if (!ligne) return '';
+      return Object.values(ligne).join(' ');
+    },
+
+    async submit() {
+      if (readonly) { this.globalError = "Cette réservation ne peut plus être modifiée."; return; }
+      this.submitting = true;
+      this.errors = {}; this.globalError = '';
+      const body = {
+        arrival: this.arrival,
+        departure: this.departure,
+        contactEmail: this.contactEmail,
+        contactPhone: this.contactPhone,
+        remarques: this.remarques,
+        sejours: this.sejours.map(s => ({
+          visitorId: s.visitorId, nom: s.nom, prenom: s.prenom,
+          email: s.email, phone: s.phone, profileId: s.profileId,
+          arrival: s.arrival, departure: s.departure,
+        })),
+      };
+      try {
+        const resp = await fetch(window.location.pathname, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+          body: JSON.stringify(body),
+        });
+        const data = await resp.json();
+        if (data.ok) { this.done = true; return; }
+        this.errors = data.errors || {};
+        if (this.errors.__all__) this.globalError = this.errors.__all__;
+        // Renvoie à l'étape concernée par la première erreur.
+        if (this.errors.dates) this.step = 1;
+        else if (this.errors.sejours || Object.keys(this.errors).some(k => k.startsWith('sejour_'))) this.step = 2;
+      } catch (e) {
+        this.globalError = "Une erreur est survenue. Réessayez.";
+      } finally {
+        this.submitting = false;
+      }
+    },
+  };
+}
+</script>
+</body>
+</html>

@@ -144,6 +144,7 @@ UNFOLD_VIALE = {
     'SITE_HEADER': 'Viale — Gestion des séjours',
     'SITE_SYMBOL': 'home',
     'SHOW_BACK_BUTTON': True,
+    'DASHBOARD_CALLBACK': 'viale_manager.dashboard.dashboard_callback',
     'SIDEBAR': {
         'show_search': True,
         'show_all_applications': True,

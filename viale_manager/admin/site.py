@@ -7,10 +7,14 @@ class VialeAdminSite(UnfoldAdminSite):
     site_header = 'Viale — Gestion des séjours'
     index_title = 'Tableau de bord'
     settings_name = 'UNFOLD_VIALE'
+    index_template = 'viale_manager/admin/index.html'
 
     def get_urls(self):
         from viale_manager.views.calendrier import (
             CalendrierView, CalendrierResourcesView, CalendrierEventsView
+        )
+        from viale_manager.views.reservation_admin import (
+            reservation_create_link, reservation_toggle_link_sent, reservation_delete,
         )
         custom = [
             path(
@@ -27,6 +31,21 @@ class VialeAdminSite(UnfoldAdminSite):
                 'calendrier/events/',
                 self.admin_view(CalendrierEventsView.as_view()),
                 name='viale_manager_calendrier_events',
+            ),
+            path(
+                'reservations/create-link/',
+                self.admin_view(reservation_create_link),
+                name='viale_manager_reservation_create_link',
+            ),
+            path(
+                'reservations/<int:pk>/toggle-link-sent/',
+                self.admin_view(reservation_toggle_link_sent),
+                name='viale_manager_reservation_toggle_link_sent',
+            ),
+            path(
+                'reservations/<int:pk>/delete-link/',
+                self.admin_view(reservation_delete),
+                name='viale_manager_reservation_delete',
             ),
         ]
         return custom + super().get_urls()

@@ -5,6 +5,7 @@ from unfold.sections import TemplateSection
 
 from viale_manager.models import Reservations, Sejours
 from .site import viale_admin
+from .widgets import reservations_widget_context
 
 
 class PeriodeSejourFilter(admin.SimpleListFilter):
@@ -45,12 +46,17 @@ class SejourAdmin(ModelAdmin):
     date_hierarchy = 'arrival_date'
     readonly_fields = ['visitor', 'reservation', 'created_at', 'updated_at']
     list_sections = [ReservationSection]
+    change_list_template = 'viale_manager/admin/sejours_change_list.html'
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if 'periode' not in request.GET:
             qs = qs.actifs()
         return qs
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = {**(extra_context or {}), **reservations_widget_context(request)}
+        return super().changelist_view(request, extra_context=extra_context)
 
     @admin.display(description='', ordering='reservation_id')
     def reservation_label(self, obj):
@@ -68,7 +74,15 @@ class ReservationAdmin(ModelAdmin):
     readonly_fields = ['created_at', 'updated_at', 'confirmed_at', 'link_token']
 
     def has_module_permission(self, request):
+        # Masqué de l'index/sidebar, mais les vues (édition des paramètres
+        # depuis le widget) restent accessibles.
         return False
+
+    def has_view_permission(self, request, obj=None):
+        return True
+
+    def has_change_permission(self, request, obj=None):
+        return True
 
 
 viale_admin.register(Sejours, SejourAdmin)

@@ -22,5 +22,6 @@ from viale_manager.admin import viale_admin
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accueil/', viale_admin.urls),
+    path('viale/', include('viale_manager.urls')),
     path('', include('core.urls')),
 ]
