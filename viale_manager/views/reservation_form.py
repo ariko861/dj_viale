@@ -1,6 +1,7 @@
 import json
 from datetime import date, datetime
 
+from django.contrib.auth.models import PermissionsMixin
 from django.db import transaction
 from django.db.models import Q
 from django.http import Http404, JsonResponse
@@ -45,6 +46,7 @@ class ReservationFormView(View):
                 'prenom': s.visitor.prenom,
                 'email': s.visitor.email or '',
                 'phone': s.visitor.phone or '',
+                'dob': s.visitor.date_de_naissance.isoformat() if s.visitor.date_de_naissance else '',
                 'price': s.price,
                 'arrival': s.arrival_date.isoformat() if s.arrival_date else '',
                 'departure': s.departure_date.isoformat() if s.departure_date else '',
@@ -58,6 +60,7 @@ class ReservationFormView(View):
 
         context = {
             'reservation': reservation,
+            'is_groupe': reservation.groupe,
             'messages_link': messages.filter(type=Messages.TypeMessage.LINK),
             'messages_confirmation': messages.filter(type=Messages.TypeMessage.CONFIRMATION),
             'readonly': bool(reservation.confirmed_at) and not reservation.authorize_edition,
@@ -105,6 +108,16 @@ class ReservationFormView(View):
         elif len(raw_sejours) > reservation.max_visitors:
             errors['sejours'] = f"Maximum {reservation.max_visitors} séjour(s) autorisé(s)."
 
+        # En mode groupe, le formulaire est simplifié : nom/prénom (et email si
+        # exigé) par visiteur ; tous les séjours partagent les dates principales
+        # et un unique profil de prix choisi pour tout le groupe.
+        is_groupe = reservation.groupe
+        group_profile = None
+        if is_groupe:
+            group_profile = Profiles.objects.filter(id=payload.get('groupProfileId')).first()
+            if group_profile is None:
+                errors['profile'] = "Choisissez un profil de prix pour le groupe."
+
         max_delta = reservation.max_days_change
         cleaned = []
         for i, s in enumerate(raw_sejours):
@@ -113,30 +126,37 @@ class ReservationFormView(View):
             nom = (s.get('nom') or '').strip()
             prenom = (s.get('prenom') or '').strip()
             email = (s.get('email') or '').strip()
-            phone = (s.get('phone') or '').strip()
 
             if not visitor_id and (not nom or not prenom):
                 ligne['visitor'] = "Nom et prénom obligatoires."
             if reservation.all_mails_required and not email:
                 ligne['email'] = "Email obligatoire."
 
-            profile = Profiles.objects.filter(id=s.get('profileId')).first()
-            if profile is None:
-                ligne['profile'] = "Choisissez un profil de prix."
+            if is_groupe:
+                phone = ''
+                dob = None
+                profile = group_profile
+                s_arrival, s_departure = arrival, departure
+            else:
+                phone = (s.get('phone') or '').strip()
+                dob = _parse_date(s.get('dob'))
+                profile = Profiles.objects.filter(id=s.get('profileId')).first()
+                if profile is None:
+                    ligne['profile'] = "Choisissez un profil de prix."
 
-            s_arrival = _parse_date(s.get('arrival')) or arrival
-            s_departure = _parse_date(s.get('departure')) or departure
-            if s_arrival and s_departure and s_departure <= s_arrival:
-                ligne['dates'] = "La date de départ doit être après la date d'arrivée."
-            elif arrival and departure and max_delta is not None:
-                if abs((s_arrival - arrival).days) > max_delta or abs((s_departure - departure).days) > max_delta:
-                    ligne['dates'] = f"Les dates ne peuvent pas varier de plus de {max_delta} jour(s)."
+                s_arrival = _parse_date(s.get('arrival')) or arrival
+                s_departure = _parse_date(s.get('departure')) or departure
+                if s_arrival and s_departure and s_departure <= s_arrival:
+                    ligne['dates'] = "La date de départ doit être après la date d'arrivée."
+                elif arrival and departure and max_delta is not None:
+                    if abs((s_arrival - arrival).days) > max_delta or abs((s_departure - departure).days) > max_delta:
+                        ligne['dates'] = f"Les dates ne peuvent pas varier de plus de {max_delta} jour(s)."
 
             if ligne:
                 errors[f'sejour_{i}'] = ligne
             cleaned.append({
                 'visitor_id': visitor_id, 'nom': nom, 'prenom': prenom,
-                'email': email, 'phone': phone, 'profile': profile,
+                'email': email, 'phone': phone, 'dob': dob, 'profile': profile,
                 'arrival': s_arrival, 'departure': s_departure,
             })
 
@@ -169,7 +189,7 @@ class ReservationFormView(View):
                     visitor=visitor,
                     arrival_date=c['arrival'],
                     departure_date=c['departure'],
-                    price=c['profile'].price,
+                    price=c['profile'].price if c['profile'] else None,
                     confirmed=False,
                     remove_from_stats=False,
                 )
@@ -190,6 +210,7 @@ class ReservationFormView(View):
         return Visitors.objects.create(
             nom=c['nom'], prenom=c['prenom'],
             email=c['email'] or None, phone=c['phone'] or None,
+            date_de_naissance=c['dob'],
             confirmed=False, created_at=now, updated_at=now,
         )
 
@@ -206,7 +227,7 @@ def visitor_search(request, token):
     if len(q) < 3:
         return JsonResponse([], safe=False)
 
-    if request.user.is_authenticated and request.user.is_staff:
+    if request.user.is_authenticated and request.user.has_perm('viale_manager.view_visitor'):
         lookup = Q(email__icontains=q)
     else:
         lookup = Q(email__iexact=q)
@@ -218,7 +239,11 @@ def visitor_search(request, token):
         .order_by('email')[:8]
     )
     data = [
-        {'id': v.id, 'nom': v.nom, 'prenom': v.prenom, 'email': v.email, 'phone': v.phone or ''}
+        {
+            'id': v.id, 'nom': v.nom, 'prenom': v.prenom,
+            'email': v.email, 'phone': v.phone or '',
+            'dob': v.date_de_naissance.isoformat() if v.date_de_naissance else '',
+        }
         for v in visitors
     ]
     return JsonResponse(data, safe=False)

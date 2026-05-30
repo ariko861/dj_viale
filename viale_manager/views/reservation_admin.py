@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from viale_manager.forms import ReservationLinkForm
 from viale_manager.models import Reservations, Sejours
 
 
@@ -15,19 +16,22 @@ def _back(request):
 
 @require_POST
 def reservation_create_link(request):
-    """Crée une nouvelle réservation vide avec un token, prête à être partagée."""
+    """Crée une nouvelle réservation avec un token, prête à être partagée."""
+    form = ReservationLinkForm(request.POST)
+    if not form.is_valid():
+        for field, errs in form.errors.items():
+            label = form.fields[field].label if field in form.fields else field
+            messages.error(request, f"{label} : {' '.join(errs)}")
+        return _back(request)
+
     now = timezone.now()
-    Reservations.objects.create(
-        link_token=uuid.uuid4(),
-        authorize_edition=True,
-        max_days_change=2,
-        max_visitors=10,
-        link_sent=False,
-        all_mails_required=False,
-        groupe=False,
-        created_at=now,
-        updated_at=now,
-    )
+    reservation = form.save(commit=False)
+    reservation.link_token = uuid.uuid4()
+    reservation.authorize_edition = True
+    reservation.link_sent = False
+    reservation.created_at = now
+    reservation.updated_at = now
+    reservation.save()
     messages.success(request, "Lien de réservation créé.")
     return _back(request)
 

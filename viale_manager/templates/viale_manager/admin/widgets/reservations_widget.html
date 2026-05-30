@@ -1,87 +1,80 @@
-{% load i18n %}
+{% load unfold %}
 {% if reservation_widget %}
-<div class="bg-white dark:bg-base-900 shadow-sm rounded-default border border-base-200 dark:border-base-800 mb-8">
+<style>[x-cloak]{display:none!important;}</style>
+<div class="mb-8" x-data="{ openCreate: false }">
 
-  <div class="flex items-center justify-between px-4 py-3 border-b border-base-200 dark:border-base-800">
-    <h2 class="font-semibold text-base text-base-900 dark:text-base-100">Liens de réservation</h2>
-    <form method="post" action="{{ reservation_widget.create_url }}">
-      {% csrf_token %}
-      <button type="submit"
-              class="inline-flex items-center gap-1 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-2 rounded-default">
-        <span class="material-symbols-outlined text-base">add_link</span>
-        Création lien formulaire
-      </button>
-    </form>
-  </div>
+  {% capture as vm_widget_action silent %}
+    {% component "unfold/components/button.html" with variant="primary" icon="add_link" extra_attrs='type="button" x-on:click="openCreate = true"' %}
+      Création lien formulaire
+    {% endcomponent %}
+  {% endcapture %}
 
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-base-500 dark:text-base-400 border-b border-base-200 dark:border-base-800">
-          <th class="px-4 py-2 font-medium">Id</th>
-          <th class="px-4 py-2 font-medium">Remarques accueil</th>
-          <th class="px-4 py-2 font-medium">Lien envoyé</th>
-          <th class="px-4 py-2 font-medium">Confirmée</th>
-          <th class="px-4 py-2 font-medium">Groupe</th>
-          <th class="px-4 py-2 font-medium text-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in reservation_widget.reservations %}
-        <tr class="border-b border-base-100 dark:border-base-800 last:border-0">
-          <td class="px-4 py-3 align-top">
-            <button type="button"
-                    onclick="navigator.clipboard.writeText('{{ r.public_url }}').then(() => {this.dataset.copied='1'; this.querySelector('.lbl').textContent='Lien copié !'; setTimeout(() => this.querySelector('.lbl').textContent='Cliquez pour copier le lien', 1500);})"
-                    class="text-left group">
-              <span class="font-medium text-primary-600">{{ r.id }}</span><br>
-              <span class="lbl text-xs text-base-400 group-hover:text-primary-600">Cliquez pour copier le lien</span>
-            </button>
-          </td>
-          <td class="px-4 py-3 align-top text-base-600 dark:text-base-300">{{ r.remarques_accueil|truncatechars:40 }}</td>
-          <td class="px-4 py-3 align-top">
-            <form method="post" action="{{ r.toggle_url }}">
-              {% csrf_token %}
-              <button type="submit" title="Basculer 'lien envoyé'">
-                {% if r.link_sent %}
-                  <span class="material-symbols-outlined text-green-600">toggle_on</span>
-                {% else %}
-                  <span class="material-symbols-outlined text-base-300">toggle_off</span>
-                {% endif %}
-              </button>
-            </form>
-          </td>
-          <td class="px-4 py-3 align-top">
-            {% if r.confirmed %}
-              <span class="material-symbols-outlined text-green-600">check_circle</span>
-            {% else %}
-              <span class="material-symbols-outlined text-red-500">cancel</span>
-            {% endif %}
-          </td>
-          <td class="px-4 py-3 align-top">
-            {% if r.groupe %}
-              <span class="material-symbols-outlined text-green-600">check_circle</span>
-            {% else %}
-              <span class="material-symbols-outlined text-red-500">cancel</span>
-            {% endif %}
-          </td>
-          <td class="px-4 py-3 align-top text-right whitespace-nowrap">
-            <a href="{{ r.public_url }}" target="_blank" title="Ouvrir le formulaire"
-               class="material-symbols-outlined text-base-400 hover:text-primary-600 align-middle">open_in_new</a>
-            <a href="{{ r.edit_url }}" title="Modifier les paramètres"
-               class="material-symbols-outlined text-base-400 hover:text-primary-600 align-middle">edit</a>
-            <form method="post" action="{{ r.delete_url }}" class="inline"
-                  onsubmit="return confirm('Supprimer cette réservation et ses séjours ?');">
-              {% csrf_token %}
-              <button type="submit" title="Supprimer"
-                      class="material-symbols-outlined text-base-400 hover:text-red-500 align-middle">delete</button>
-            </form>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="px-4 py-6 text-center text-base-400">Aucune réservation.</td></tr>
+  {% component "unfold/components/card.html" with title="Liens de réservation" action=vm_widget_action %}
+    {% component "unfold/components/table.html" with table=reservation_widget.table card_included=1 %}{% endcomponent %}
+  {% endcomponent %}
+
+  <!-- Modal : création d'un lien de réservation -->
+  <div class="backdrop-blur-xs bg-base-900/20 fixed inset-0 z-60 dark:bg-base-900/80"
+       x-cloak x-show="openCreate" x-transition.opacity
+       x-on:keydown.escape.window="openCreate = false"></div>
+
+  <div class="fixed inset-0 z-70 flex items-center justify-center p-4" x-cloak x-show="openCreate">
+    <div class="bg-white rounded-default p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-lg dark:bg-base-800"
+         x-on:click.outside="openCreate = false">
+
+      <div class="flex items-center mb-6">
+        <h2 class="font-semibold text-[15px] text-important">Création lien formulaire</h2>
+        <button type="button" class="ml-auto text-base-400 hover:text-base-600" x-on:click="openCreate = false">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <form method="post" action="{{ reservation_widget.create_url }}">
+        {% csrf_token %}
+
+        {% for field in reservation_widget.create_form %}
+          {% if field.name == 'all_mails_required' or field.name == 'groupe' %}
+            <div class="flex items-start gap-3 mb-4">
+              <div class="mt-0.5">{{ field }}</div>
+              <div>
+                <label class="font-medium text-sm text-base-700 dark:text-base-300">{{ field.label }}</label>
+                {% if field.help_text %}<p class="text-sm text-base-500 leading-snug">{{ field.help_text }}</p>{% endif %}
+              </div>
+            </div>
+          {% else %}
+            <div class="mb-4">
+              <label class="block font-medium text-sm mb-1 text-base-700 dark:text-base-300">
+                {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
+              </label>
+              {{ field }}
+              {% if field.help_text %}<p class="text-sm text-base-500 mt-1">{{ field.help_text }}</p>{% endif %}
+              {% for e in field.errors %}<p class="text-red-600 text-sm mt-1">{{ e }}</p>{% endfor %}
+            </div>
+          {% endif %}
         {% endfor %}
-      </tbody>
-    </table>
+
+        <div class="flex justify-end gap-2 border-t border-base-200 -mx-6 px-6 pt-4 mt-6 dark:border-base-700">
+          {% component "unfold/components/button.html" with variant="default" extra_attrs='type="button" x-on:click="openCreate = false"' %}
+            Annuler
+          {% endcomponent %}
+          {% component "unfold/components/button.html" with submit=1 variant="primary" %}
+            Soumettre
+          {% endcomponent %}
+        </div>
+      </form>
+    </div>
   </div>
 </div>
+
+<script>
+function vmCopyLink(btn, url) {
+  navigator.clipboard.writeText(url).then(function () {
+    var l = btn.querySelector('.copy-lbl');
+    if (!l) return;
+    var prev = l.textContent;
+    l.textContent = 'Lien copié !';
+    setTimeout(function () { l.textContent = prev; }, 1500);
+  });
+}
+</script>
 {% endif %}

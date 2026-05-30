@@ -75,6 +75,19 @@
         </label>
       </div>
       <p x-show="errors.dates" class="text-red-600 text-sm" x-text="errors.dates"></p>
+
+      <!-- Profil de prix appliqué à tout le groupe -->
+      <div x-show="isGroupe" class="pt-2">
+        <label class="block">
+          <span class="text-sm text-gray-600">Profil de prix (appliqué à tout le groupe)</span>
+          <select x-model.number="groupProfileId" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+            <template x-for="p in profiles" :key="p.id">
+              <option :value="p.id" x-text="`${p.name} (${p.price} €)`"></option>
+            </template>
+          </select>
+        </label>
+        <p x-show="errors.profile" class="text-red-600 text-sm mt-1" x-text="errors.profile"></p>
+      </div>
     </div>
 
     <!-- Étape 2 : séjours -->
@@ -90,7 +103,7 @@
           <button type="button" @click="removeSejour(idx)" x-show="sejours.length > 1"
                   class="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-sm">✕</button>
 
-          <div class="relative" @click.outside="sejour.showSuggestions = false">
+          <div class="relative" x-show="!isGroupe || allMailsRequired" @click.outside="sejour.showSuggestions = false">
             <label class="text-sm text-gray-600">Email (pour retrouver un visiteur existant)</label>
             <input type="email" x-model="sejour.email" @input.debounce.300ms="searchVisitors(idx)" @focus="sejour.showSuggestions = sejour.suggestions.length > 0"
                    class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2" placeholder="ex. dupont@mail.be">
@@ -123,12 +136,19 @@
             </label>
           </div>
 
-          <label class="block">
-            <span class="text-sm text-gray-600">Téléphone</span>
-            <input type="text" x-model="sejour.phone" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
-          </label>
+          <div class="grid grid-cols-2 gap-3" x-show="!isGroupe">
+            <label class="block">
+              <span class="text-sm text-gray-600">Téléphone</span>
+              <input type="text" x-model="sejour.phone" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+            </label>
+            <label class="block">
+              <span class="text-sm text-gray-600">Date de naissance</span>
+              <input type="date" x-model="sejour.dob" :disabled="!!sejour.visitorId"
+                     class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2 disabled:bg-gray-100">
+            </label>
+          </div>
 
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-3 gap-3" x-show="!isGroupe">
             <label class="block">
               <span class="text-sm text-gray-600">Profil de prix</span>
               <select x-model.number="sejour.profileId" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
@@ -220,6 +240,7 @@ function reservationWizard() {
       prenom: s ? s.prenom : '',
       email: s ? s.email : '',
       phone: s ? s.phone : '',
+      dob: s ? s.dob : '',
       profileId: defaultProfileId,
       arrival: s ? s.arrival : '',
       departure: s ? s.departure : '',
@@ -232,6 +253,8 @@ function reservationWizard() {
     step: 1,
     stepLabels: ['Dates', 'Visiteurs', 'Contact'],
     profiles,
+    isGroupe: {{ is_groupe|yesno:"true,false" }},
+    groupProfileId: defaultProfileId,
     maxVisitors: {{ max_visitors }},
     maxDaysChange: {{ max_days_change }},
     allMailsRequired: {{ all_mails_required|yesno:"true,false" }},
@@ -287,12 +310,12 @@ function reservationWizard() {
     pickVisitor(idx, v) {
       const s = this.sejours[idx];
       s.visitorId = v.id;
-      s.nom = v.nom; s.prenom = v.prenom; s.email = v.email; s.phone = v.phone;
+      s.nom = v.nom; s.prenom = v.prenom; s.email = v.email; s.phone = v.phone; s.dob = v.dob || '';
       s.showSuggestions = false;
     },
     clearVisitor(idx) {
       const s = this.sejours[idx];
-      s.visitorId = null; s.nom = ''; s.prenom = ''; s.phone = '';
+      s.visitorId = null; s.nom = ''; s.prenom = ''; s.phone = ''; s.dob = '';
     },
 
     formatLigne(ligne) {
@@ -307,12 +330,13 @@ function reservationWizard() {
       const body = {
         arrival: this.arrival,
         departure: this.departure,
+        groupProfileId: this.groupProfileId,
         contactEmail: this.contactEmail,
         contactPhone: this.contactPhone,
         remarques: this.remarques,
         sejours: this.sejours.map(s => ({
           visitorId: s.visitorId, nom: s.nom, prenom: s.prenom,
-          email: s.email, phone: s.phone, profileId: s.profileId,
+          email: s.email, phone: s.phone, dob: s.dob, profileId: s.profileId,
           arrival: s.arrival, departure: s.departure,
         })),
       };
@@ -327,7 +351,7 @@ function reservationWizard() {
         this.errors = data.errors || {};
         if (this.errors.__all__) this.globalError = this.errors.__all__;
         // Renvoie à l'étape concernée par la première erreur.
-        if (this.errors.dates) this.step = 1;
+        if (this.errors.dates || this.errors.profile) this.step = 1;
         else if (this.errors.sejours || Object.keys(this.errors).some(k => k.startsWith('sejour_'))) this.step = 2;
       } catch (e) {
         this.globalError = "Une erreur est survenue. Réessayez.";

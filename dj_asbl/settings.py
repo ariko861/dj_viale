@@ -150,8 +150,18 @@ UNFOLD_VIALE = {
         'show_all_applications': True,
         'navigation': [
             {
-                'title': 'Calendrier',
                 'separator': False,
+                'items': [
+                    {
+                        'title': 'Tableau de bord',
+                        'icon': 'dashboard',
+                        'link': reverse_lazy('viale_manager:index'),
+                    },
+                ],
+            },
+            {
+                'title': 'Calendrier',
+                'separator': True,
                 'items': [
                     {
                         'title': 'Calendrier',
