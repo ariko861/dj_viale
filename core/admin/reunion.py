@@ -80,6 +80,16 @@ class ProcurationsInline(TabularInline):
     model = Procuration
     extra = 0
     tab = True
+    fields = ['mandant', 'mandataire', 'fichier', 'telecharger']
+    readonly_fields = ['telecharger']
+
+    def telecharger(self, obj):
+        if not obj.pk or not obj.fichier:
+            return '—'
+        url = reverse('procuration-document', args=[obj.pk]) + '?dl=1'
+        return format_html('<a href="{}" target="_blank">Télécharger</a>', url)
+
+    telecharger.short_description = 'Télécharger'
 
     def get_formset(self, request, obj=None, **kwargs):
         formset = super().get_formset(request, obj, **kwargs)

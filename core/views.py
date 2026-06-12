@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from icalendar import Calendar, Event
 
 from core.docx import generer_document
-from core.models import DocumentReunion, ModeleDocument, Reunion
+from core.models import DocumentReunion, ModeleDocument, Procuration, Reunion
 
 
 def document_reunion(request, token):
@@ -18,6 +18,20 @@ def document_reunion(request, token):
         doc.fichier.open('rb'),
         as_attachment=as_attachment,
         filename=doc.fichier.name.split('/')[-1],
+    )
+
+
+def procuration_document(request, pk):
+    if not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path())
+    proc = get_object_or_404(Procuration, pk=pk)
+    if not proc.fichier:
+        raise Http404
+    as_attachment = 'dl' in request.GET
+    return FileResponse(
+        proc.fichier.open('rb'),
+        as_attachment=as_attachment,
+        filename=proc.fichier.name.split('/')[-1],
     )
 
 
