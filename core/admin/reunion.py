@@ -21,12 +21,20 @@ class DocumentsInline(TabularInline):
     model = DocumentReunion
     extra = 0
     tab = True
-    fields = ['nom', 'fichier', 'public', 'lien_public']
-    readonly_fields = ['lien_public']
+    fields = ['nom', 'fichier', 'telecharger', 'public', 'lien_public']
+    readonly_fields = ['telecharger', 'lien_public']
 
     def get_formset(self, request, obj=None, **kwargs):
         self._request = request
         return super().get_formset(request, obj, **kwargs)
+
+    def telecharger(self, obj):
+        if not obj.pk or not obj.fichier:
+            return '—'
+        url = reverse('document-reunion', args=[obj.token]) + '?dl=1'
+        return format_html('<a href="{}" target="_blank">Télécharger</a>', url)
+
+    telecharger.short_description = 'Télécharger'
 
     def lien_public(self, obj):
         if not obj.pk or not obj.public:

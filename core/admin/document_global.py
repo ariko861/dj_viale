@@ -8,17 +8,25 @@ from core.models import DocumentReunion
 
 @admin.register(DocumentReunion)
 class DocumentGlobalAdmin(ModelAdmin):
-    list_display = ['nom', 'fichier', 'public', 'lien_public']
+    list_display = ['nom', 'fichier', 'telecharger', 'public', 'lien_public']
     list_filter = [
         'reunion'
     ]
     list_filter_submit = True
-    fields = ['nom', 'fichier', 'public', 'lien_public']
-    readonly_fields = ['lien_public']
+    fields = ['nom', 'fichier', 'telecharger', 'public', 'lien_public']
+    readonly_fields = ['telecharger', 'lien_public']
 
     def changeform_view(self, request, *args, **kwargs):
         self._request = request
         return super().changeform_view(request, *args, **kwargs)
+
+    def telecharger(self, obj):
+        if not obj.pk or not obj.fichier:
+            return '—'
+        url = reverse('document-reunion', args=[obj.token]) + '?dl=1'
+        return format_html('<a href="{}" target="_blank">Télécharger</a>', url)
+
+    telecharger.short_description = 'Télécharger'
 
     def lien_public(self, obj):
         if not obj.pk or not obj.public:

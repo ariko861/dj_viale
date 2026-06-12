@@ -13,7 +13,12 @@ def document_reunion(request, token):
         return redirect_to_login(request.get_full_path())
     if not doc.fichier:
         raise Http404
-    return FileResponse(doc.fichier.open('rb'), as_attachment=True, filename=doc.fichier.name.split('/')[-1])
+    as_attachment = 'dl' in request.GET
+    return FileResponse(
+        doc.fichier.open('rb'),
+        as_attachment=as_attachment,
+        filename=doc.fichier.name.split('/')[-1],
+    )
 
 
 def reunion_ical(request, pk):
