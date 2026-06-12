@@ -4,6 +4,7 @@ import zipfile
 from constance import config
 from django.contrib import admin, messages
 from django.core.mail import EmailMessage
+from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import path, reverse
@@ -14,7 +15,15 @@ from unfold.decorators import action
 
 from core.docx import generer_document
 from core.forms import EnvoyerEmailForm
-from core.models import DocumentReunion, EmailEnvoye, Membre, ModeleDocument, Procuration, Reunion
+from core.models import (
+    DocumentReunion,
+    EmailEnvoye,
+    Membre,
+    MembreReunion,
+    ModeleDocument,
+    Procuration,
+    Reunion,
+)
 
 
 class DocumentsInline(TabularInline):
@@ -104,7 +113,7 @@ class ProcurationsInline(TabularInline):
 class ReunionAdmin(ModelAdmin):
 
     inlines = [DocumentsInline, MembresInline, ProcurationsInline, EmailsEnvoyesInline]
-    readonly_fields = ['documents_disponibles']
+    readonly_fields = ['documents_disponibles', 'compteur_presences']
     actions_detail = ['telecharger_ical', 'envoyer_email', 'telecharger_documents_zip']
     actions = ['telecharger_documents_zip_action']
 
@@ -138,6 +147,24 @@ class ReunionAdmin(ModelAdmin):
         return mark_safe('<br>'.join(links))
 
     documents_disponibles.short_description = 'Documents'
+
+    def compteur_presences(self, obj):
+        if not obj.pk:
+            return '—'
+        counts = {
+            row['etat']: row['n']
+            for row in MembreReunion.objects.filter(reunion=obj)
+            .values('etat')
+            .annotate(n=Count('id'))
+        }
+        total = sum(counts.values())
+        details = ', '.join(
+            f'{label} : {counts.get(value, 0)}'
+            for value, label in MembreReunion.Etat.choices
+        )
+        return format_html('<strong>Total : {}</strong> — {}', total, details)
+
+    compteur_presences.short_description = 'Présences'
 
     @action(description='Télécharger iCal', url_path='ical')
     def telecharger_ical(self, request, object_id):
