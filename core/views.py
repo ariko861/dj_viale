@@ -1,10 +1,15 @@
+import os
+
+from django.conf import settings
 from django.contrib.auth.views import redirect_to_login
+from django.core.exceptions import SuspiciousFileOperation
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils._os import safe_join
 from icalendar import Calendar, Event
 
 from core.docx import generer_document
-from core.models import DocumentReunion, ModeleDocument, Procuration, Reunion
+from core.models import DocumentReunion, ModeleDocument, Reunion
 
 
 def document_reunion(request, token):
@@ -21,18 +26,22 @@ def document_reunion(request, token):
     )
 
 
-def procuration_document(request, pk):
-    if not request.user.is_authenticated:
+def media_protege(request, path):
+    """Sert un fichier de MEDIA_ROOT aux seuls utilisateurs ayant accès à l'admin.
+
+    Branché sur MEDIA_URL, ce qui fait fonctionner le lien de téléchargement natif
+    des widgets FileField partout dans l'admin.
+    """
+    if not (request.user.is_authenticated and request.user.is_staff):
         return redirect_to_login(request.get_full_path())
-    proc = get_object_or_404(Procuration, pk=pk)
-    if not proc.fichier:
+    try:
+        full_path = safe_join(str(settings.MEDIA_ROOT), path)
+    except (ValueError, SuspiciousFileOperation):
+        raise Http404
+    if not os.path.isfile(full_path):
         raise Http404
     as_attachment = 'dl' in request.GET
-    return FileResponse(
-        proc.fichier.open('rb'),
-        as_attachment=as_attachment,
-        filename=proc.fichier.name.split('/')[-1],
-    )
+    return FileResponse(open(full_path, 'rb'), as_attachment=as_attachment)
 
 
 def reunion_ical(request, pk):
