@@ -15,9 +15,10 @@ def make_jinja_env():
 
 def build_reunion_context(reunion):
     from core.models import Membre, MembreReunion, Procuration
-    membres = (
+    membres = list(
         reunion.membrereunion_set
-        .select_related('membre')
+        .select_related('membre', 'procuration_donnee__mandataire__membre')
+        .prefetch_related('procurations_recues__mandant__membre')
         .order_by('membre__nom', 'membre__prenom')
     )
     presents = [
@@ -25,11 +26,11 @@ def build_reunion_context(reunion):
         if mr.etat in (MembreReunion.Etat.INVITE, MembreReunion.Etat.ACCEPTE)
     ]
     absents = [mr for mr in membres if mr.etat == MembreReunion.Etat.ABSENT]
-    procurations = (
+    procurations = list(
         Procuration.objects
         .filter(reunion=reunion)
-        .select_related('mandant', 'mandataire')
-        .order_by('mandant__nom', 'mandant__prenom')
+        .select_related('mandant__membre', 'mandataire__membre')
+        .order_by('mandant__membre__nom', 'mandant__membre__prenom')
     )
     secretaire = Membre.objects.filter(pk=config.SECRETAIRE_ID).first() if config.SECRETAIRE_ID else None
     president = Membre.objects.filter(pk=config.PRESIDENT_ID).first() if config.PRESIDENT_ID else None

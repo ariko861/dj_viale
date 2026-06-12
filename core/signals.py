@@ -44,7 +44,6 @@ def creer_membres_reunion(sender, instance, created, **kwargs):
 def set_etat_procuration(sender, instance, **kwargs):
     from core.models.membre_reunion import MembreReunion
 
-    MembreReunion.objects.filter(
-        reunion=instance.reunion,
-        membre=instance.mandant,
-    ).update(etat=MembreReunion.Etat.PROCURATION)
+    MembreReunion.objects.filter(pk=instance.mandant_id).update(
+        etat=MembreReunion.Etat.PROCURATION,
+    )

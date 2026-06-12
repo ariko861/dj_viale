@@ -18,7 +18,6 @@ from core.forms import EnvoyerEmailForm
 from core.models import (
     DocumentReunion,
     EmailEnvoye,
-    Membre,
     MembreReunion,
     ModeleDocument,
     Procuration,
@@ -85,7 +84,7 @@ class ProcurationsInline(TabularInline):
     def get_formset(self, request, obj=None, **kwargs):
         formset = super().get_formset(request, obj, **kwargs)
         if obj and obj.pk:
-            membres_qs = Membre.objects.filter(membrereunion__reunion=obj)
+            membres_qs = MembreReunion.objects.filter(reunion=obj).select_related('membre')
             formset.form.base_fields['mandant'].queryset = membres_qs
             formset.form.base_fields['mandataire'].queryset = membres_qs
         return formset

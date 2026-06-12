@@ -34,3 +34,6 @@ class MembreReunion(models.Model):
         choices=Etat.choices,
         default=Etat.INVITE,
     )
+
+    def __str__(self):
+        return str(self.membre)
