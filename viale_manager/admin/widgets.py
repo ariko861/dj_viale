@@ -119,6 +119,7 @@ def reservations_widget_context(request, limit=8):
                 'rows': rows,
             },
             'create_url': reverse('viale_manager:viale_manager_reservation_create_link'),
+            'add_url': reverse('viale_manager:viale_manager_reservations_add'),
             'create_form': ReservationLinkForm(initial={'max_days_change': 2, 'max_visitors': 10}),
         }
     }

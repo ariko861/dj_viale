@@ -1,9 +1,15 @@
-from django.contrib import admin
+import uuid
+
+from django.contrib import admin, messages
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import format_html
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin, TabularInline
 from unfold.sections import TemplateSection
 
-from viale_manager.models import Reservations, Sejours
+from viale_manager.forms import ReservationAddForm, SejourInlineForm, SejourInlineFormSet
+from viale_manager.models import Reservations, Sejours, Visitors
 from .site import viale_admin
 from .widgets import reservations_widget_context
 
@@ -67,11 +73,26 @@ class SejourAdmin(ModelAdmin):
         )
 
 
+class SejoursInline(TabularInline):
+    model = Sejours
+    form = SejourInlineForm
+    formset = SejourInlineFormSet
+    fields = ['visitor', 'profile', 'price', 'arrival_date', 'departure_date']
+    autocomplete_fields = ['visitor']
+    extra = 0
+
+
 class ReservationAdmin(ModelAdmin):
     list_display = ['id', 'contact_email', 'contact_phone', 'confirmed_at', 'link_sent', 'groupe', 'nom_groupe']
     list_filter = ['link_sent', 'groupe', 'all_mails_required']
     search_fields = ['contact_email', 'contact_phone', 'nom_groupe']
     readonly_fields = ['created_at', 'updated_at', 'confirmed_at', 'link_token']
+    inlines = [SejoursInline]
+    conditional_fields = {
+        'nom_groupe': 'groupe == true',
+        'groupe_profile': 'groupe == true',
+        'number_visitors': 'groupe == true',
+    }
 
     def has_module_permission(self, request):
         # Masqué de l'index/sidebar, mais les vues (édition des paramètres
@@ -83,6 +104,72 @@ class ReservationAdmin(ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return True
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        if obj is None:
+            kwargs['form'] = ReservationAddForm
+        return super().get_form(request, obj, change=change, **kwargs)
+
+    def get_fieldsets(self, request, obj=None):
+        if obj is None:
+            return [
+                (None, {'fields': ['arrival_date', 'departure_date', 'remarques_accueil']}),
+                ('Contact', {'fields': ['contact_email', 'contact_phone']}),
+                ('Groupe', {'fields': ['groupe', 'nom_groupe', 'groupe_profile', 'number_visitors']}),
+            ]
+        return super().get_fieldsets(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        return self.readonly_fields if obj else []
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            # Saisie par l'accueil : confirmée d'office, lien verrouillé
+            # (« envoyer le lien » le rouvre au besoin).
+            obj.link_token = uuid.uuid4()
+            obj.authorize_edition = False
+            obj.link_sent = False
+            obj.all_mails_required = False
+            obj.max_days_change = 2
+            obj.max_visitors = 1
+            obj.confirmed_at = timezone.now()
+        super().save_model(request, obj, form, change)
+
+    def save_formset(self, request, form, formset, change):
+        sejours = formset.save(commit=False)
+        for sejour in sejours:
+            if sejour.pk is None:
+                sejour.confirmed = True
+                if not change:
+                    sejour.arrival_date = sejour.arrival_date or form.cleaned_data['arrival_date']
+                    sejour.departure_date = sejour.departure_date or form.cleaned_data['departure_date']
+            sejour.save()
+        for sejour in formset.deleted_objects:
+            sejour.delete()
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        reservation = form.instance
+        if not change and reservation.groupe:
+            data = form.cleaned_data
+            for i in range(1, data['number_visitors'] + 1):
+                visitor = Visitors.objects.create(
+                    nom=reservation.nom_groupe, prenom=f'Personne {i}', confirmed=False,
+                )
+                Sejours.objects.create(
+                    reservation=reservation, visitor=visitor, confirmed=True,
+                    arrival_date=data['arrival_date'], departure_date=data['departure_date'],
+                    price=data['groupe_profile'].price,
+                )
+        if not change:
+            reservation.max_visitors = max(1, Sejours.objects.filter(reservation=reservation).count())
+            reservation.save(update_fields=['max_visitors', 'updated_at'])
+
+    def response_add(self, request, obj, post_url_continue=None):
+        if '_addanother' in request.POST or '_continue' in request.POST:
+            return super().response_add(request, obj, post_url_continue)
+        messages.success(request, f"Réservation {obj.id} créée.")
+        return redirect(reverse('viale_manager:viale_manager_sejours_changelist'))
 
 
 viale_admin.register(Sejours, SejourAdmin)

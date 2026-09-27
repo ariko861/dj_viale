@@ -4,9 +4,14 @@
 <div class="mb-8" x-data="{ openCreate: false, groupe: false }">
 
   {% capture as vm_widget_action silent %}
-    {% component "unfold/components/button.html" with variant="primary" icon="add_link" extra_attrs='type="button" x-on:click="openCreate = true"' %}
-      Création lien formulaire
-    {% endcomponent %}
+    <div class="flex gap-2">
+      {% component "unfold/components/button.html" with variant="default" icon="person_add" href=reservation_widget.add_url %}
+        Nouvelle réservation
+      {% endcomponent %}
+      {% component "unfold/components/button.html" with variant="primary" icon="add_link" extra_attrs='type="button" x-on:click="openCreate = true"' %}
+        Création lien formulaire
+      {% endcomponent %}
+    </div>
   {% endcapture %}
 
   {% component "unfold/components/card.html" with title="Liens de réservation" action=vm_widget_action %}

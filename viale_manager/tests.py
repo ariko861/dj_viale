@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from constance.test import override_config
 from django.core import mail
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from core.models import User
@@ -210,3 +210,62 @@ class VisitorSearchTests(TestCase):
         staff.user_permissions.add(Permission.objects.get(codename='view_visitors'))
         self.client.force_login(staff)
         self.assertEqual(len(self.client.get(url, {'q': 'dupont'}).json()), 1)
+
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class ReservationAddAdminTests(TestCase):
+
+    def setUp(self):
+        self.client.force_login(User.objects.create_superuser(username='admin', email='a@example.com', password='x'))
+        self.profile = Profiles.objects.create(name='Standard', price=20, is_default=True, remarques='')
+        self.url = reverse('viale_manager:viale_manager_reservations_add')
+        self.arrival = date.today() + timedelta(days=3)
+
+    def post(self, rows=(), **data):
+        payload = {
+            'arrival_date': self.arrival.isoformat(), 'departure_date': '',
+            'remarques_accueil': '', 'contact_email': '', 'contact_phone': '',
+            'nom_groupe': '', 'groupe_profile': '', 'number_visitors': '',
+            'sejours_set-TOTAL_FORMS': len(rows), 'sejours_set-INITIAL_FORMS': 0,
+            'sejours_set-MIN_NUM_FORMS': 0, 'sejours_set-MAX_NUM_FORMS': 1000,
+        }
+        for i, row in enumerate(rows):
+            for k, v in row.items():
+                payload[f'sejours_set-{i}-{k}'] = v
+        payload.update(data)
+        return self.client.post(self.url, payload)
+
+    def test_page_ajout_s_affiche(self):
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_personnes_reprennent_les_dates_de_la_reservation(self):
+        v = Visitors.objects.create(nom='Dupont', prenom='Jean', confirmed=False)
+        resp = self.post(rows=[{'visitor': v.id, 'profile': self.profile.id, 'price': '',
+                                'arrival_date': '', 'departure_date': ''}])
+        self.assertEqual(resp.status_code, 302, getattr(resp, 'context_data', {}).get('errors'))
+
+        r = Reservations.objects.get()
+        self.assertIsNotNone(r.confirmed_at)
+        self.assertFalse(r.authorize_edition)
+        s = Sejours.objects.get(reservation=r)
+        self.assertEqual((s.arrival_date, s.departure_date, s.price, s.confirmed), (self.arrival, None, 20, True))
+
+    def test_sans_personne_refuse(self):
+        resp = self.post()
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Reservations.objects.exists())
+
+    def test_groupe_cree_n_personnes(self):
+        resp = self.post(
+            groupe='on', nom_groupe='Scouts', contact_email='chef@example.com',
+            groupe_profile=self.profile.id, number_visitors=3,
+            departure_date=(self.arrival + timedelta(days=2)).isoformat(),
+        )
+        self.assertEqual(resp.status_code, 302)
+        r = Reservations.objects.get()
+        self.assertEqual(r.max_visitors, 3)
+        prenoms = sorted(Sejours.objects.filter(reservation=r).values_list('visitor__prenom', flat=True))
+        self.assertEqual(prenoms, ['Personne 1', 'Personne 2', 'Personne 3'])
