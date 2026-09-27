@@ -1,0 +1,25 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="{{ action }}">
+  <input type="hidden" name="apply" value="1">
+  {# « Tout sélectionner » : on refait passer le filtre (URL) plutôt que des milliers d'ids. #}
+  {% if select_across %}<input type="hidden" name="select_across" value="1">
+  {% else %}{% for pk in selected %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ pk }}">{% endfor %}{% endif %}
+
+  <p class="mb-4">{{ groupes|length }} visiteur(s) en double, {{ nb_fiches }} fiche(s) à supprimer. Dans chaque groupe, la première fiche (séjour le plus récent) est conservée.</p>
+
+  <div class="flex gap-2 mb-6">
+    <button type="submit" class="bg-primary-600 text-white font-medium px-3 py-2 rounded-default">Fusionner {{ groupes|length }} groupe(s)</button>
+    <a href="" class="border border-base-200 px-3 py-2 rounded-default dark:border-base-700">Annuler</a>
+  </div>
+
+  {% for groupe in groupes %}
+    <div class="mb-4">
+      {% include "viale_manager/admin/_visitors_table.html" with visitors=groupe %}
+    </div>
+  {% endfor %}
+</form>
+{% endblock %}

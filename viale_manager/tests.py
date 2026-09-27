@@ -333,3 +333,83 @@ class SejourActionsTests(TestCase):
         self.client.force_login(staff)
         self.post('cancel')
         self.assertTrue(Sejours.objects.exists())
+
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class FusionVisiteursTests(TestCase):
+
+    def setUp(self):
+        self.client.force_login(User.objects.create_superuser(username='admin', email='a@example.com', password='x'))
+        self.r = _reservation()
+        self.url = reverse('viale_manager:viale_manager_visitors_changelist')
+
+    def visitor(self, arrival=None, **kwargs):
+        v = Visitors.objects.create(**{'nom': 'Peltier', 'prenom': 'Aloïs', 'confirmed': False, **kwargs})
+        if arrival:
+            Sejours.objects.create(reservation=self.r, visitor=v, arrival_date=arrival)
+        return v
+
+    def test_absorb(self):
+        ref = self.visitor(arrival=date(2025, 1, 1), email='a@x.be')
+        dup = self.visitor(arrival=date(2024, 1, 1), email='autre@x.be', phone='0470',
+                           date_de_naissance=date(2010, 5, 5), remarques='allergique')
+
+        self.assertEqual(ref.absorb([ref, dup]), 1)
+        ref.refresh_from_db()
+        self.assertFalse(Visitors.objects.filter(pk=dup.pk).exists())
+        self.assertEqual(Sejours.objects.filter(visitor=ref).count(), 2)
+        self.assertEqual((ref.email, ref.phone, ref.date_de_naissance), ('a@x.be', '0470', date(2010, 5, 5)))
+        self.assertIn('allergique', ref.remarques)
+        self.assertIn('autre@x.be', ref.remarques)
+        self.assertNotIn('0470', ref.remarques)
+
+    def test_filtre_doublons(self):
+        dob = date(2010, 5, 5)
+        a, b = self.visitor(date_de_naissance=dob), self.visitor(nom=' PELTIER', date_de_naissance=dob)
+        self.visitor(date_de_naissance=date(2011, 1, 1))
+        self.visitor(prenom='Marin', date_de_naissance=dob)
+
+        resp = self.client.get(self.url, {'doublons': 'naissance'})
+        self.assertEqual({v.pk for v in resp.context['cl'].result_list}, {a.pk, b.pk})
+        resp = self.client.get(self.url, {'doublons': 'nom'})
+        self.assertEqual(len(resp.context['cl'].result_list), 3)
+
+    def test_fusion_manuelle_avec_reference_choisie(self):
+        a, b = self.visitor(arrival=date(2025, 1, 1)), self.visitor(prenom='Alois')
+        data = {'action': 'fusionner', '_selected_action': [a.pk, b.pk]}
+
+        resp = self.client.post(self.url, data)
+        self.assertTemplateUsed(resp, 'viale_manager/admin/visitors_merge.html')
+        self.assertEqual(Visitors.objects.count(), 2)
+
+        self.client.post(self.url, {**data, 'apply': '1', 'reference': b.pk})
+        self.assertEqual(list(Visitors.objects.values_list('pk', flat=True)), [b.pk])
+        self.assertEqual(Sejours.objects.get().visitor_id, b.pk)
+
+    def test_fusion_des_doublons_evidents(self):
+        dob = date(2010, 5, 5)
+        recent = self.visitor(arrival=date(2025, 1, 1), date_de_naissance=dob)
+        vieux = self.visitor(arrival=date(2020, 1, 1), date_de_naissance=dob)
+        sans_sejour = self.visitor(date_de_naissance=dob)
+        autre = self.visitor(prenom='Marin', date_de_naissance=dob)
+        pks = [recent.pk, vieux.pk, sans_sejour.pk, autre.pk]
+
+        self.client.post(self.url, {'action': 'fusionner_doublons_evidents', '_selected_action': pks, 'apply': '1'})
+        self.assertEqual(set(Visitors.objects.values_list('pk', flat=True)), {recent.pk, autre.pk})
+        self.assertEqual(Sejours.objects.filter(visitor=recent).count(), 2)
+
+    def test_tout_selectionner_refait_passer_le_filtre(self):
+        dob = date(2010, 5, 5)
+        a, b = self.visitor(date_de_naissance=dob), self.visitor(date_de_naissance=dob)
+        url = self.url + '?doublons=naissance'
+        data = {'action': 'fusionner_doublons_evidents', '_selected_action': [a.pk], 'select_across': '1'}
+
+        resp = self.client.post(url, data)
+        self.assertContains(resp, 'name="select_across"')
+        self.assertNotContains(resp, f'value="{b.pk}"')
+
+        self.client.post(url, {**data, 'apply': '1'})
+        self.assertEqual(Visitors.objects.count(), 1)

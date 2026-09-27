@@ -1,0 +1,22 @@
+<table class="w-full text-sm border border-base-200 rounded-default dark:border-base-700">
+  <thead>
+    <tr class="text-left text-base-500">
+      {% if choix %}<th class="px-3 py-2">Conserver</th>{% endif %}
+      <th class="px-3 py-2">Nom</th><th class="px-3 py-2">Naissance</th><th class="px-3 py-2">Email</th>
+      <th class="px-3 py-2">Téléphone</th><th class="px-3 py-2">Séjours</th><th class="px-3 py-2">Dernière arrivée</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for v in visitors %}
+    <tr class="border-t border-base-200 dark:border-base-700{% if not choix and forloop.first %} font-semibold{% endif %}">
+      {% if choix %}<td class="px-3 py-2"><input type="radio" name="reference" value="{{ v.pk }}"{% if forloop.first %} checked{% endif %}></td>{% endif %}
+      <td class="px-3 py-2">{{ v }}</td>
+      <td class="px-3 py-2">{{ v.date_de_naissance|date:"d/m/Y"|default:"—" }}</td>
+      <td class="px-3 py-2">{{ v.email|default:"—" }}</td>
+      <td class="px-3 py-2">{{ v.phone|default:"—" }}</td>
+      <td class="px-3 py-2">{{ v.sejours_count }}</td>
+      <td class="px-3 py-2">{{ v.dernier_sejour|date:"d/m/Y"|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
