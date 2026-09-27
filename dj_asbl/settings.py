@@ -270,6 +270,7 @@ INSTALLED_APPS = [
     'unfold.contrib.constance',
     'unfold.contrib.forms',
     'unfold.contrib.import_export',
+    'unfold.contrib.hijack',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -278,6 +279,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'constance',
     'import_export',
+    'hijack',
+    'hijack.contrib.admin',
     'core',
     'viale_manager',
 ]
@@ -289,6 +292,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'hijack.middleware.HijackUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -298,7 +302,8 @@ ROOT_URLCONF = 'dj_asbl.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        # Surcharges de templates des applications tierces (ex. hijack/notification.html).
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -311,6 +316,9 @@ TEMPLATES = [
 ]
 
 AUTH_USER_MODEL = 'core.User'
+
+# Redirection par défaut après connexion (et de hijack sans page de destination).
+LOGIN_REDIRECT_URL = 'admin:index'
 
 WSGI_APPLICATION = 'dj_asbl.wsgi.application'
 

@@ -1,0 +1,19 @@
+{% load i18n %}
+{# Bandeau hijack autonome (styles en ligne) : celui d'Unfold dépend du CSS de l'admin #}
+{# et devient illisible sur les pages publiques (« Mon compte »…). #}
+<div id="djhj" style="position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 9999;
+     max-width: calc(100vw - 24px); font: 14px/1.4 system-ui, sans-serif;">
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 8px 8px 14px;
+       background: #7c3aed; color: #fff; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, .25);">
+    <span>Vous êtes connecté en tant que <strong>{{ request.user }}</strong>.</span>
+    <form action="{% url 'hijack:release' %}" method="POST" style="display: flex; gap: 6px; margin: 0;">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'admin:core_user_changelist' %}">
+      <button type="submit" style="cursor: pointer; border: 0; border-radius: 6px; padding: 4px 10px;
+              background: #fff; color: #5b21b6; font-weight: 600;">Revenir à mon compte</button>
+      <button type="button" onclick="document.getElementById('djhj').style.display = 'none';"
+              style="cursor: pointer; border: 0; border-radius: 6px; padding: 4px 10px;
+              background: rgba(255, 255, 255, .2); color: #fff;">Masquer</button>
+    </form>
+  </div>
+</div>

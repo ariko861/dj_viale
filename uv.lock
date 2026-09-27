@@ -28,6 +28,7 @@ dependencies = [
     { name = "django" },
     { name = "django-constance" },
     { name = "django-environ" },
+    { name = "django-hijack" },
     { name = "django-import-export" },
     { name = "django-unfold" },
     { name = "docxtpl" },
@@ -43,6 +44,7 @@ requires-dist = [
     { name = "django", specifier = ">=6.0.5" },
     { name = "django-constance", specifier = ">=4.0" },
     { name = "django-environ", specifier = ">=0.13.0" },
+    { name = "django-hijack", specifier = ">=3.7.8" },
     { name = "django-import-export", specifier = ">=4.4.1" },
     { name = "django-unfold", specifier = ">=0.93.0" },
     { name = "docxtpl", specifier = ">=0.20.2" },
@@ -83,6 +85,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/57/e1/4c4ddcf6e90f023e89edb1d92f9a7fffce61ad4b691df497f2f5c0be6e26/django_environ-0.14.0.tar.gz", hash = "sha256:b6c48d93b9d2ff8a3ea14099e90c35aa4f101c1b4d5f262dfee0d27b06742ed7", size = 60417, upload-time = "2026-06-18T22:49:55.847Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1a/fe/67b423fc30f16d10259e901320fbc121746bf168aaaad9043e6ebb0110c1/django_environ-0.14.0-py3-none-any.whl", hash = "sha256:8dbe8a57f0a540ab8abd6f54f230de5e99e3a2c9d797cb9caecb037bca3d47d8", size = 20934, upload-time = "2026-06-18T22:49:54.355Z" },
+]
+
+[[package]]
+name = "django-hijack"
+version = "3.7.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8c/b3/4b87f0bb4d0ca9128cd7fae37d434a0a4c7855c20759e33f2fa58a9d8a74/django_hijack-3.7.8.tar.gz", hash = "sha256:f28afb2be24430e348b8887c2f04337b1b77b66a44e4a6cd3a40902926d9e5fb", size = 14476, upload-time = "2026-04-19T18:07:15.284Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/d3/c55448947bf88198add5bc5843915135e855e02c0bebf89c1b3419e582ec/django_hijack-3.7.8-py3-none-any.whl", hash = "sha256:8967e4f4e528e0cc06b4f0829fbc1a55a493cc3ce8c0d088d51d9a40404a32de", size = 31444, upload-time = "2026-04-19T18:07:13.859Z" },
 ]
 
 [[package]]

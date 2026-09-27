@@ -23,6 +23,7 @@ from viale_manager.views.accueil import accueil
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('hijack/', include('hijack.urls')),
     path('accueil/', viale_admin.urls),
     path('viale/', include('viale_manager.urls')),
     path('', accueil, name='home'),
