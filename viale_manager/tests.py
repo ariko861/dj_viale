@@ -531,3 +531,79 @@ class StatistiquesTests(TestCase):
             self.assertEqual(resp.status_code, 200)
         resp = self.client.get(reverse('viale_manager:viale_manager_sejours_changelist'))
         self.assertContains(resp, 'data-type="bar"')
+
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class MaisonneesTests(TestCase):
+
+    def setUp(self):
+        from viale_manager.models import Houses, MaisonneesPlanning
+
+        self.client.force_login(User.objects.create_superuser(username='admin', email='a@example.com', password='x'))
+        self.h1 = Houses.objects.create(name='Tilleul', community=True)
+        self.h2 = Houses.objects.create(name='Chêne', community=True)
+        self.begin = date.today()
+        self.planning = MaisonneesPlanning.objects.create(begin=self.begin, end=self.begin + timedelta(days=6))
+        self.planning.set_houses([self.h1, self.h2])
+        r = _reservation()
+        v = Visitors.objects.create(nom='Dupont', prenom='Jean', confirmed=False)
+        self.present = Sejours.objects.create(reservation=r, visitor=v, arrival_date=self.begin + timedelta(days=2))
+        self.absent = Sejours.objects.create(
+            reservation=r, visitor=v, arrival_date=self.begin + timedelta(days=10),
+            departure_date=self.begin + timedelta(days=12),
+        )
+
+    def test_prepare_synchronise_les_sejours(self):
+        self.planning.prepare()
+        self.planning.prepare()
+        a = self.planning.assignationsmaisonnees_set.get()
+        self.assertEqual((a.sejour_id, a.house_id), (self.present.id, None))
+
+        self.present.arrival_date = self.begin + timedelta(days=20)
+        self.present.save()
+        self.planning.prepare()
+        self.assertFalse(self.planning.assignationsmaisonnees_set.exists())
+
+    def test_retirer_une_maison_remet_a_placer(self):
+        self.planning.prepare()
+        self.planning.assignationsmaisonnees_set.update(house=self.h1)
+        self.planning.set_houses([self.h2])
+        self.assertIsNone(self.planning.assignationsmaisonnees_set.get().house_id)
+
+    def test_tableau_et_deplacement(self):
+        url = reverse('viale_manager:viale_manager_maisonnees', args=[self.planning.id])
+        resp = self.client.get(url)
+        self.assertContains(resp, 'Jean Dupont')
+        self.assertEqual([c[1] for c in resp.context['colonnes']], ['À placer', 'Chêne', 'Tilleul'])
+
+        a = self.planning.assignationsmaisonnees_set.get()
+        assign = reverse('viale_manager:viale_manager_maisonnees_assign', args=[self.planning.id])
+        post = lambda house: self.client.post(assign, json.dumps({'assignation': a.id, 'house': house}),
+                                              content_type='application/json')
+        self.assertEqual(post(self.h1.id).status_code, 200)
+        a.refresh_from_db()
+        self.assertEqual(a.house_id, self.h1.id)
+        self.assertEqual(post(None).status_code, 200)
+        a.refresh_from_db()
+        self.assertIsNone(a.house_id)
+
+        from viale_manager.models import Houses
+        hors_planning = Houses.objects.create(name='Grange', community=True)
+        self.assertEqual(post(hors_planning.id).status_code, 400)
+
+    def test_index_redirige_vers_le_planning_en_cours_et_creation(self):
+        resp = self.client.get(reverse('viale_manager:viale_manager_maisonnees_index'))
+        self.assertRedirects(resp, reverse('viale_manager:viale_manager_maisonnees', args=[self.planning.id]))
+
+        resp = self.client.post(reverse('viale_manager:viale_manager_maisonnees_create'), {
+            'begin': (self.begin + timedelta(days=7)).isoformat(),
+            'end': (self.begin + timedelta(days=13)).isoformat(),
+            'houses': [self.h1.id],
+        })
+        from viale_manager.models import MaisonneesPlanning
+        nouveau = MaisonneesPlanning.objects.latest('id')
+        self.assertRedirects(resp, reverse('viale_manager:viale_manager_maisonnees', args=[nouveau.id]))
+        self.assertEqual(list(nouveau.houses.all()), [self.h1])

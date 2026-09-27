@@ -1,0 +1,123 @@
+{% extends "admin/base_site.html" %}
+{% load unfold %}
+
+{% block content %}
+{% url 'viale_manager:viale_manager_maisonnees_create' as create_url %}
+
+<div class="flex flex-wrap items-start gap-3 mb-6">
+  {% if plannings %}
+  <label class="flex items-center gap-2 text-sm">Planning
+    <select onchange="window.location = this.value"
+            class="border border-base-200 rounded-default px-3 py-2 bg-white dark:bg-base-900 dark:border-base-700">
+      {% for p in plannings %}
+        <option value="{% url 'viale_manager:viale_manager_maisonnees' p.id %}"{% if p.id == planning.id %} selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% endif %}
+
+  <details class="relative" {% if not planning %}open{% endif %}>
+    <summary class="cursor-pointer bg-primary-600 text-white font-medium px-3 py-2 rounded-default">Nouveau planning</summary>
+    <form method="post" action="{{ create_url }}"
+          class="{% if planning %}absolute z-50 mt-2 shadow-lg{% else %}mt-3{% endif %} w-80 bg-white border border-base-200 rounded-default p-4 dark:bg-base-900 dark:border-base-700">
+      {% csrf_token %}
+      <div class="flex gap-3 mb-3">
+        <label class="flex flex-col text-sm gap-1">Début
+          <input type="date" name="begin" value="{{ next_begin|date:'Y-m-d' }}" required class="border border-base-200 rounded-default px-2 py-1 dark:bg-base-900 dark:border-base-700">
+        </label>
+        <label class="flex flex-col text-sm gap-1">Fin
+          <input type="date" name="end" value="{{ next_end|date:'Y-m-d' }}" required class="border border-base-200 rounded-default px-2 py-1 dark:bg-base-900 dark:border-base-700">
+        </label>
+      </div>
+      <p class="text-sm mb-1">Maisons</p>
+      {% for m in maisons %}
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="houses" value="{{ m.id }}" checked> {{ m.name }}</label>
+      {% endfor %}
+      <button type="submit" class="mt-3 bg-primary-600 text-white font-medium px-3 py-2 rounded-default">Créer</button>
+    </form>
+  </details>
+
+  {% if planning %}
+  <details class="relative">
+    <summary class="cursor-pointer border border-base-200 px-3 py-2 rounded-default list-none dark:border-base-700">Modifier les maisons</summary>
+    <form method="post" action="{% url 'viale_manager:viale_manager_maisonnees_houses' planning.id %}"
+          class="absolute z-50 mt-2 w-80 bg-white border border-base-200 rounded-default p-4 shadow-lg dark:bg-base-900 dark:border-base-700">
+      {% csrf_token %}
+      {% for m in maisons %}
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="houses" value="{{ m.id }}"{% if m.id in houses_ids %} checked{% endif %}> {{ m.name }}</label>
+      {% endfor %}
+      <p class="text-xs text-base-500 mt-2">Les personnes d'une maison retirée repassent « à placer ».</p>
+      <button type="submit" class="mt-3 bg-primary-600 text-white font-medium px-3 py-2 rounded-default">Enregistrer</button>
+    </form>
+  </details>
+
+  <form method="post" action="{% url 'viale_manager:viale_manager_maisonnees_reset' planning.id %}"
+        onsubmit="return confirm('Remettre tout le monde « à placer » ?');">
+    {% csrf_token %}
+    <button type="submit" class="border border-base-200 px-3 py-2 rounded-default text-red-600 dark:border-base-700">Recommencer</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if planning %}
+<div x-data="maisonnees()" class="flex gap-4 overflow-x-auto pb-4 items-start">
+  {% for house_id, titre, cartes in colonnes %}
+  <section style="width: 16rem; flex-shrink: 0" class="bg-base-50 border border-base-200 rounded-default dark:bg-base-800 dark:border-base-700">
+    <h2 class="font-semibold px-3 py-2 border-b border-base-200 dark:border-base-700">
+      {{ titre }} <span class="text-base-500 font-normal">(<span x-text="counts['{{ house_id|default_if_none:'' }}']">{{ cartes|length }}</span>)</span>
+    </h2>
+    <ul style="min-height: 6rem" class="p-2 flex flex-col gap-2"
+        x-sort="move($item, {{ house_id|default_if_none:'null' }})" x-sort:group="maisonnees">
+      {% for a in cartes %}
+      <li x-sort:item="{{ a.id }}" data-house="{{ a.house_id|default_if_none:'' }}" style="cursor: grab"
+          class="bg-white border border-base-200 rounded-default px-3 py-2 text-sm shadow-xs dark:bg-base-900 dark:border-base-700">
+        <div class="font-medium text-important">{{ a.sejour.visitor.prenom }} {{ a.sejour.visitor.nom }}</div>
+        <div class="text-xs text-base-500">
+          {% if a.age is not None %}{{ a.age }} ans · {% endif %}{{ a.sejour.arrival_date|date:"d/m" }} → {{ a.sejour.departure_date|date:"d/m"|default:"?" }}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
+
+<script>
+function maisonnees() {
+  const url = "{% url 'viale_manager:viale_manager_maisonnees_assign' planning.id %}";
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const counts = {};
+  const where = {};
+  document.querySelectorAll('[data-house]').forEach(el => {
+    const h = el.dataset.house;
+    counts[h] = (counts[h] || 0) + 1;
+    where[el.getAttribute('x-sort:item')] = h;
+  });
+  {% for house_id, titre, cartes in colonnes %}counts['{{ house_id|default_if_none:'' }}'] ??= 0;
+  {% endfor %}
+  return {
+    counts,
+    async move(id, house) {
+      const to = house === null ? '' : String(house);
+      const from = where[id];
+      if (from === to) return;
+      this.counts[from]--; this.counts[to]++; where[id] = to;
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+          body: JSON.stringify({assignation: id, house}),
+        });
+        if (!resp.ok) throw new Error(resp.status);
+      } catch (e) {
+        alert("Le déplacement n'a pas été enregistré. La page va se recharger.");
+        window.location.reload();
+      }
+    },
+  };
+}
+</script>
+{% else %}
+<p class="text-base-500">Aucun planning en cours ou à venir. Créez-en un pour répartir les séjours en maisonnées.</p>
+{% endif %}
+{% endblock %}

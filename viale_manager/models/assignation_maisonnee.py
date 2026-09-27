@@ -10,9 +10,11 @@ class AssignationsMaisonnees(models.Model):
         on_delete=models.CASCADE,
     )
 
+    # NULL = « à placer » (Laravel utilisait house_id = 0).
     house = models.ForeignKey(
         'Houses',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        blank=True, null=True,
     )
 
     planning = models.ForeignKey(

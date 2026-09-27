@@ -200,6 +200,11 @@ UNFOLD_VIALE = {
                         'icon': 'group',
                         'link': reverse_lazy('viale_manager:viale_manager_visitors_changelist'),
                     },
+                    {
+                        'title': 'Maisonnées',
+                        'icon': 'diversity_3',
+                        'link': reverse_lazy('viale_manager:viale_manager_maisonnees_index'),
+                    },
                 ],
             },
             {
