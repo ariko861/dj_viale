@@ -404,6 +404,10 @@ MAILERS = {
 }
 DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', default='asbl@localhost')
 
+# Nettoyage ponctuel des visiteurs hérités de l'ancienne application, enregistrés
+# avec une naissance au 1er janvier : active le filtre et l'action de fusion dédiés.
+VIALE_FUSION_1ER_JANVIER = env.bool('VIALE_FUSION_1ER_JANVIER', default=False)
+
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 

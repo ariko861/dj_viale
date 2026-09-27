@@ -15,6 +15,7 @@ x-django-env: &django-env
   SMTP_USE_SSL: ${SMTP_USE_SSL:-False}
   SMTP_USER: ${SMTP_USER:-}
   SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  VIALE_FUSION_1ER_JANVIER: ${VIALE_FUSION_1ER_JANVIER:-False}
 
 services:
   db:

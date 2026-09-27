@@ -497,6 +497,53 @@ class FusionVisiteursTests(TestCase):
         self.assertEqual(set(Visitors.objects.values_list('pk', flat=True)), {recent.pk, autre.pk})
         self.assertEqual(Sejours.objects.filter(visitor=recent).count(), 2)
 
+    def test_fusion_1er_janvier_desactivee_par_defaut(self):
+        resp = self.client.get(self.url)
+        self.assertNotContains(resp, '1er_janvier')
+        with self.settings(VIALE_FUSION_1ER_JANVIER=True):
+            resp = self.client.get(self.url)
+        self.assertContains(resp, 'value="fusionner_doublons_1er_janvier"')
+        self.assertContains(resp, 'doublons=1er_janvier')
+
+    @override_settings(VIALE_FUSION_1ER_JANVIER=True)
+    def test_filtre_doublons_1er_janvier(self):
+        ancien = self.visitor(date_de_naissance=date(2010, 1, 1))
+        precis = self.visitor(date_de_naissance=date(2010, 5, 5))
+        self.visitor(prenom='Marin', date_de_naissance=date(2010, 5, 5))
+        self.visitor(prenom='Marin', date_de_naissance=date(2010, 6, 6))
+        self.visitor(date_de_naissance=date(2011, 1, 1))
+
+        resp = self.client.get(self.url, {'doublons': '1er_janvier'})
+        self.assertEqual({v.pk for v in resp.context['cl'].result_list}, {ancien.pk, precis.pk})
+
+    @override_settings(VIALE_FUSION_1ER_JANVIER=True)
+    def test_fusion_doublons_1er_janvier(self):
+        recent = self.visitor(arrival=date(2025, 1, 1), date_de_naissance=date(2010, 1, 1))
+        precis = self.visitor(arrival=date(2020, 1, 1), date_de_naissance=date(2010, 5, 5))
+        autre_annee = self.visitor(date_de_naissance=date(2011, 1, 1))
+        a1, a2 = self.visitor(prenom='Marin', date_de_naissance=date(2010, 1, 1)), \
+            self.visitor(prenom='Marin', date_de_naissance=date(2010, 1, 1))
+        amb = [self.visitor(prenom='Zoé', date_de_naissance=d).pk
+               for d in (date(2010, 1, 1), date(2010, 5, 5), date(2010, 6, 6))]
+        pks = [recent.pk, precis.pk, autre_annee.pk, a1.pk, a2.pk, *amb]
+        data = {'action': 'fusionner_doublons_1er_janvier', '_selected_action': pks}
+
+        resp = self.client.post(self.url, data)
+        self.assertContains(resp, 'date de naissance précise')
+        self.assertContains(resp, '01/01/2010')
+        self.assertEqual(Visitors.objects.count(), 8)
+
+        resp = self.client.post(self.url, {**data, 'apply': '1'}, follow=True)
+        self.assertContains(resp, 'plusieurs dates de naissance précises')
+        self.assertEqual(
+            set(Visitors.objects.exclude(prenom='Zoé').values_list('pk', flat=True)),
+            {recent.pk, autre_annee.pk, a2.pk},
+        )
+        self.assertEqual(Visitors.objects.filter(prenom='Zoé').count(), 3)
+        recent.refresh_from_db()
+        self.assertEqual(recent.date_de_naissance, date(2010, 5, 5))
+        self.assertEqual(Sejours.objects.filter(visitor=recent).count(), 2)
+
     def submit_confirmation(self, url, resp):
         """Soumet la page de confirmation telle que le navigateur le ferait."""
         import re
