@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>La Viale</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 flex flex-col">
+<main class="flex-1 w-full max-w-xl mx-auto px-4 py-16">
+  <h1 class="text-3xl font-semibold">La Viale</h1>
+  <p class="text-gray-500 mb-8">Quartier Gallet</p>
+
+  {% if email or telephone or adresse %}
+  <section class="bg-white rounded-xl shadow-sm p-6">
+    <h2 class="text-lg font-medium mb-4">Nous contacter</h2>
+    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+      {% if email %}<dt class="text-gray-500">Email</dt><dd><a class="text-emerald-700 underline" href="mailto:{{ email }}">{{ email }}</a></dd>{% endif %}
+      {% if telephone %}<dt class="text-gray-500">Téléphone</dt><dd><a class="text-emerald-700 underline" href="tel:{{ telephone }}">{{ telephone }}</a></dd>{% endif %}
+      {% if adresse %}<dt class="text-gray-500">Adresse</dt><dd>{{ adresse|linebreaksbr }}</dd>{% endif %}
+    </dl>
+  </section>
+  {% endif %}
+</main>
+
+<footer class="w-full max-w-xl mx-auto px-4 py-6 text-xs text-gray-400 flex flex-wrap gap-x-4 gap-y-1">
+  {% if user.is_authenticated and user.visiteur %}
+    <a class="hover:text-gray-600" href="{% url 'compte' %}">Mon compte</a>
+  {% else %}
+    <a class="hover:text-gray-600" href="{% url 'compte_inscription' %}">Créer un compte</a>
+    <a class="hover:text-gray-600" href="{% url 'compte_connexion' %}">Se connecter</a>
+  {% endif %}
+  <a class="hover:text-gray-600 ml-auto" href="{% url 'viale_manager:index' %}">Espace accueil</a>
+</footer>
+</body>
+</html>

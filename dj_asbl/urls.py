@@ -18,10 +18,12 @@ from django.contrib import admin
 from django.urls import include, path
 
 from viale_manager.admin import viale_admin
+from viale_manager.views.accueil import accueil
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accueil/', viale_admin.urls),
     path('viale/', include('viale_manager.urls')),
+    path('', accueil, name='home'),
     path('', include('core.urls')),
 ]

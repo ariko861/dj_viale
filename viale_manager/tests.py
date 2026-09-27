@@ -689,3 +689,30 @@ class CompteVisiteurTests(TestCase):
         resp = self.client.get(reverse('viale_manager:index'))
         self.assertEqual(resp.status_code, 302)
         self.assertIn('login', resp.url)
+
+
+class AccueilTests(TestCase):
+
+    @override_config(VIALE_EMAIL='accueil@viale.test', VIALE_TELEPHONE='', VIALE_ADRESSE='Rue du Four 1')
+    def test_page_d_accueil(self):
+        resp = self.client.get('/')
+        self.assertContains(resp, 'mailto:accueil@viale.test')
+        self.assertContains(resp, 'Rue du Four 1')
+        self.assertNotContains(resp, 'Téléphone')
+        self.assertContains(resp, reverse('compte_inscription'))
+
+    def test_visiteur_connecte_voit_mon_compte(self):
+        from core.models import User
+
+        user = User.objects.create_user(username='jean@example.com')
+        Visitors.objects.create(nom='Dupont', prenom='Jean', confirmed=False, user=user)
+        self.client.force_login(user)
+        resp = self.client.get('/')
+        self.assertContains(resp, reverse('compte'))
+        self.assertNotContains(resp, reverse('compte_inscription'))
+
+    def test_staff_sans_fiche(self):
+        from core.models import User
+
+        self.client.force_login(User.objects.create_user(username='staff', is_staff=True))
+        self.assertContains(self.client.get('/'), reverse('compte_inscription'))

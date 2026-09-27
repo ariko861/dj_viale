@@ -344,6 +344,8 @@ CONSTANCE_CONFIG = {
     'SECRETAIRE_ID': (0, "Membre secrétaire de l'ASBL (disponible dans les modèles de documents)", 'membre_select'),
     'PRESIDENT_ID': (0, "Membre président de l'ASBL (disponible dans les modèles de documents)", 'membre_select'),
     'VIALE_EMAIL': ('', "Adresse de la Viale : reçoit les réservations confirmées, sert de reply-to pour les mails aux visiteurs."),
+    'VIALE_TELEPHONE': ('', "Téléphone de la Viale, affiché sur la page d'accueil."),
+    'VIALE_ADRESSE': ('', "Adresse de la Viale, affichée sur la page d'accueil."),
 }
 
 # Email
