@@ -9,7 +9,7 @@
   {% if select_across %}<input type="hidden" name="select_across" value="1">
   {% else %}{% for v in visitors %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ v.pk }}">{% endfor %}{% endif %}
 
-  <p class="mb-4">Choisissez la fiche à conserver. Les séjours des autres fiches y seront rattachés, ses champs vides complétés, et les emails ou téléphones différents notés dans ses remarques. Les autres fiches seront supprimées.</p>
+  <p class="mb-4">Choisissez la fiche à conserver. Les séjours des autres fiches y seront rattachés, ses champs vides complétés, et les autres emails ou téléphones ajoutés à ses coordonnées secondaires. Les autres fiches seront supprimées.</p>
 
   {% include "viale_manager/admin/_visitors_table.html" with visitors=visitors choix=True %}
 

@@ -9,7 +9,7 @@ from django.urls import reverse
 
 from core.models import User
 from viale_manager.forms import ReservationLinkForm
-from viale_manager.models import Profiles, Reservations, Sejours, Visitors
+from viale_manager.models import Profiles, Reservations, Sejours, VisitorContacts, Visitors
 
 
 def _reservation(**kwargs):
@@ -143,7 +143,7 @@ class ReservationFormTests(TestCase):
         existant.refresh_from_db()
         self.assertEqual(Sejours.objects.get(reservation=r).visitor_id, existant.id)
         self.assertEqual((existant.email, existant.phone), ('ancien@example.com', '0499'))
-        self.assertIn('nouveau@example.com', existant.remarques)
+        self.assertEqual(list(existant.contacts.values_list('value', flat=True)), ['nouveau@example.com'])
 
     def test_autre_naissance_cree_un_nouveau_visiteur(self):
         Visitors.objects.create(nom='Dupont', prenom='Jean', date_de_naissance=date(1985, 1, 1), confirmed=False)
@@ -158,7 +158,7 @@ class ReservationFormTests(TestCase):
         self.post(r, data)
         v.refresh_from_db()
         self.assertEqual(v.phone, '0499')
-        self.assertIn('0470', v.remarques)
+        self.assertEqual(list(v.contacts.values_list('type', 'value')), [('phone', '0470')])
 
 class ReservationLinkFormTests(TestCase):
 
@@ -226,6 +226,15 @@ class ArrivalMailsTests(TestCase):
 
 
 class VisitorSearchTests(TestCase):
+
+    def test_email_secondaire_retrouve_sans_reveler_le_principal(self):
+        r = _reservation()
+        v = Visitors.objects.create(nom='Dupont', prenom='Jean', email='perso@example.com', confirmed=False)
+        VisitorContacts.objects.create(visitor=v, type='email', value='famille@example.com')
+        url = reverse('reservation_visitor_search', args=[r.link_token])
+
+        data = self.client.get(url, {'q': 'Famille@example.com'}).json()
+        self.assertEqual([(d['id'], d['email']) for d in data], [(v.id, 'Famille@example.com')])
 
     def test_recherche_partielle_reservee_au_staff(self):
         from django.contrib.auth.models import Permission
@@ -393,9 +402,17 @@ class FusionVisiteursTests(TestCase):
         self.assertFalse(Visitors.objects.filter(pk=dup.pk).exists())
         self.assertEqual(Sejours.objects.filter(visitor=ref).count(), 2)
         self.assertEqual((ref.email, ref.phone, ref.date_de_naissance), ('a@x.be', '0470', date(2010, 5, 5)))
-        self.assertIn('allergique', ref.remarques)
-        self.assertIn('autre@x.be', ref.remarques)
-        self.assertNotIn('0470', ref.remarques)
+        self.assertEqual(ref.remarques, 'allergique')
+        self.assertEqual(list(ref.contacts.values_list('type', 'value')), [('email', 'autre@x.be')])
+
+    def test_absorb_reprend_les_coordonnees_secondaires(self):
+        ref = self.visitor(email='a@x.be')
+        dup = self.visitor(email='A@x.be')
+        VisitorContacts.objects.create(visitor=dup, type='email', value='famille@x.be')
+        VisitorContacts.objects.create(visitor=dup, type='email', value='a@x.be')
+
+        ref.absorb([dup])
+        self.assertEqual(list(ref.contacts.values_list('value', flat=True)), ['famille@x.be'])
 
     def test_filtre_doublons(self):
         dob = date(2010, 5, 5)

@@ -5,9 +5,9 @@ from django.contrib.admin import helpers
 from django.db.models import Count, F, Max, Window
 from django.db.models.functions import Lower, Trim
 from django.template.response import TemplateResponse
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin, TabularInline
 
-from viale_manager.models import Visitors
+from viale_manager.models import VisitorContacts, Visitors
 from .site import viale_admin
 
 
@@ -40,8 +40,15 @@ class DoublonsFilter(admin.SimpleListFilter):
         ).filter(n_doublons__gt=1)
 
 
+class VisitorContactsInline(TabularInline):
+    model = VisitorContacts
+    fields = ['type', 'value']
+    extra = 0
+
+
 class VisitorAdmin(ModelAdmin):
-    search_fields = ['nom', 'prenom', 'email', 'phone']
+    search_fields = ['nom', 'prenom', 'email', 'phone', 'contacts__value']
+    inlines = [VisitorContactsInline]
     list_display = ['nom', 'prenom', 'date_de_naissance', 'email', 'phone', 'nb_sejours', 'confirmed']
     list_filter = [DoublonsFilter, 'confirmed']
     readonly_fields = ['created_at', 'updated_at']
@@ -49,7 +56,7 @@ class VisitorAdmin(ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
-            sejours_count=Count('sejours'), dernier_sejour=Max('sejours__arrival_date'),
+            sejours_count=Count('sejours', distinct=True), dernier_sejour=Max('sejours__arrival_date'),
         )
 
     @admin.display(description='séjours', ordering='sejours_count')

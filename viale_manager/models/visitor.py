@@ -43,12 +43,33 @@ class Visitors(models.Model):
             .first()
         )
 
+    def _connues(self, field):
+        """Valeurs (en minuscules) déjà connues pour ``email`` ou ``phone``."""
+        valeurs = {c.value.lower() for c in self.contacts.filter(type=field)}
+        if getattr(self, field):
+            valeurs.add(getattr(self, field).strip().lower())
+        return valeurs
+
+    def add_contact(self, field, value):
+        """Ajoute une coordonnée secondaire si elle n'est pas déjà connue.
+
+        :param field: ``'email'`` ou ``'phone'``.
+        :param value: valeur à ajouter ; vide = rien ne change.
+        """
+        from .visitor_contact import VisitorContacts
+
+        value = (value or '').strip()
+        if value and value.lower() not in self._connues(field):
+            VisitorContacts.objects.create(visitor=self, type=field, value=value)
+
     def set_coordonnee(self, field, value, replace=True):
         """Met à jour ``email`` ou ``phone`` sans perdre d'information.
 
-        Un champ vide est toujours complété. Sinon, avec ``replace``, la
-        nouvelle valeur remplace l'ancienne, notée dans ``remarques`` ; sans
-        ``replace``, c'est la nouvelle valeur qui y est notée. Ne sauvegarde pas.
+        Un champ principal vide est toujours complété. Sinon, avec ``replace``,
+        la nouvelle valeur devient principale et l'ancienne passe en coordonnée
+        secondaire ; sans ``replace``, la nouvelle valeur est ajoutée en
+        secondaire. Les coordonnées secondaires sont enregistrées tout de suite,
+        le visiteur lui-même n'est pas sauvegardé.
 
         :param field: ``'email'`` ou ``'phone'``.
         :param value: nouvelle valeur ; vide = rien ne change.
@@ -60,19 +81,21 @@ class Visitors(models.Model):
             return
         if not old:
             setattr(self, field, value)
-            return
-        note = old if replace else value
-        self.remarques = '\n'.join(filter(None, [self.remarques, f"Autre coordonnée : {note}"]))
-        if replace:
+        elif replace:
+            self.contacts.filter(type=field, value__iexact=value).delete()
             setattr(self, field, value)
+            self.add_contact(field, old)
+        else:
+            self.add_contact(field, value)
 
     @transaction.atomic
     def absorb(self, others):
         """Fusionne ``others`` dans ce visiteur, puis les supprime.
 
         Les séjours sont rattachés à ce visiteur. Ses champs vides sont
-        complétés par ceux des doublons (le plus récent d'abord) ;
-        les emails et téléphones divergents sont conservés dans ``remarques``.
+        complétés par ceux des doublons (le plus récent d'abord) ; leurs
+        autres emails et téléphones deviennent des coordonnées secondaires, et
+        leurs remarques s'ajoutent aux siennes.
 
         :param others: visiteurs à absorber (ce visiteur est ignoré s'il y figure).
         :return: le nombre de visiteurs supprimés.
@@ -88,21 +111,15 @@ class Visitors(models.Model):
             if not getattr(self, field):
                 setattr(self, field, next((getattr(o, field) for o in others if getattr(o, field)), None))
         self.confirmed = self.confirmed or any(o.confirmed for o in others)
-
-        autres = []
-        for field in ('email', 'phone'):
-            gardes = {(getattr(self, field) or '').strip().lower()}
-            for o in others:
-                value = (getattr(o, field) or '').strip()
-                if value and value.lower() not in gardes:
-                    gardes.add(value.lower())
-                    autres.append(value)
-        notes = [self.remarques] if self.remarques else []
-        notes += [o.remarques for o in others if o.remarques]
-        if autres:
-            notes.append(f"Autres coordonnées (fusion) : {', '.join(autres)}")
-        self.remarques = '\n'.join(notes) or None
+        notes = [self.remarques] + [o.remarques for o in others]
+        self.remarques = '\n'.join(n for n in notes if n) or None
         self.save()
+
+        for o in others:
+            for field in ('email', 'phone'):
+                self.add_contact(field, getattr(o, field))
+            for c in o.contacts.all():
+                self.add_contact(c.type, c.value)
 
         Sejours.objects.filter(visitor__in=others).update(visitor=self)
         Visitors.objects.filter(pk__in=[o.pk for o in others]).delete()

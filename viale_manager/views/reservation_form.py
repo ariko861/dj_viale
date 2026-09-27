@@ -289,7 +289,7 @@ class ReservationFormView(View):
 
 
 def visitor_search(request, token):
-    """Recherche JSON de visiteurs par email (pour l'autocomplete du wizard).
+    """Recherche JSON de visiteurs par email, principal ou secondaire (autocomplete du wizard).
 
     Confidentialité : un utilisateur public ne peut retrouver un visiteur que par
     correspondance EXACTE de l'email (sinon on divulguerait les coordonnées
@@ -300,21 +300,20 @@ def visitor_search(request, token):
     if len(q) < 3:
         return JsonResponse([], safe=False)
 
-    if request.user.is_authenticated and request.user.has_perm('viale_manager.view_visitors'):
-        lookup = Q(email__icontains=q)
+    staff = request.user.is_authenticated and request.user.has_perm('viale_manager.view_visitors')
+    if staff:
+        lookup = Q(email__icontains=q) | Q(contacts__type='email', contacts__value__icontains=q)
     else:
-        lookup = Q(email__iexact=q)
+        lookup = Q(email__iexact=q) | Q(contacts__type='email', contacts__value__iexact=q)
 
-    visitors = (
-        Visitors.objects
-        .filter(lookup)
-        .exclude(email__isnull=True)
-        .order_by('email')[:8]
-    )
+    visitors = Visitors.objects.filter(lookup).distinct().order_by('nom', 'prenom')[:8]
     data = [
         {
             'id': v.id, 'nom': v.nom, 'prenom': v.prenom,
-            'email': v.email, 'phone': v.phone or '',
+            # En public, on renvoie l'adresse tapée : un email secondaire (souvent
+            # partagé en famille) ne doit pas révéler l'adresse principale.
+            'email': v.email if staff else q,
+            'phone': v.phone or '',
             'dob': v.date_de_naissance.isoformat() if v.date_de_naissance else '',
         }
         for v in visitors

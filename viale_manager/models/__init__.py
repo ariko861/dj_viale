@@ -9,3 +9,4 @@ from .reservation import Reservations
 from .room import Rooms
 from .sejour import Sejours
 from .visitor import Visitors
+from .visitor_contact import VisitorContacts
