@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+# pipefail : une erreur de pg_restore/psql au milieu d'un pipe doit arrêter le script.
+set -eo pipefail
 
 source .env
 
@@ -11,23 +12,25 @@ PGPASSWORD="${POSTGRES_PASSWORD:?Variable POSTGRES_PASSWORD non définie}"
 PGDATABASE="${POSTGRES_DB:-dj_asbl}"
 export PGPASSWORD
 
-PSQL="psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE"
+PSQL="psql -v ON_ERROR_STOP=1 -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE"
 
 # Tables gérées par Django (on ignore les tables Laravel: failed_jobs, jobs, migrations,
 # model_has_permissions, model_has_roles, options, password_reset_tokens, permissions,
 # personal_access_tokens, role_has_permissions, roles, users)
+# Ordre des clés étrangères : une table après celles qu'elle référence, sinon
+# le COPY entier échoue.
 TABLES=(
-    assignations_maisonnees
     auto_mails
-    houses
-    houses_in_maisonnees_planning
-    maisonnees_planning
     messages
     profiles
-    reservations
+    houses
     rooms
-    sejours
+    maisonnees_planning
+    houses_in_maisonnees_planning
+    reservations
     visitors
+    sejours
+    assignations_maisonnees
 )
 
 echo "=== Étape 1 : migrations Django ==="
