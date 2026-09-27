@@ -1,0 +1,14 @@
+{% extends "viale_manager/compte/base.html" %}
+{% block title %}Créer un compte{% endblock %}
+{% block heading %}Créer un compte{% endblock %}
+{% block content %}
+<p class="text-sm text-gray-600 mb-4">
+  Indiquez l'email que vous avez donné lors d'un séjour à la Viale. Vous recevrez un lien pour choisir votre mot de passe.
+  Vous avez oublié votre mot de passe ? Faites de même.
+</p>
+<form method="post">{% csrf_token %}
+  {% with field=form.email %}{% include "viale_manager/compte/_field.html" %}{% endwith %}
+  <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Recevoir le lien</button>
+</form>
+<p class="text-sm text-gray-500 mt-6">Déjà un compte ? <a class="underline" href="{% url 'compte_connexion' %}">Se connecter</a></p>
+{% endblock %}

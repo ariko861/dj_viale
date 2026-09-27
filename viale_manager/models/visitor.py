@@ -1,5 +1,6 @@
+from django.conf import settings
 from django.db import models, transaction
-from django.db.models import F, Max
+from django.db.models import F, Max, Q
 from django.db.models.functions import Lower, Trim
 
 
@@ -16,9 +17,24 @@ class Visitors(models.Model):
     updated_at = models.DateTimeField(blank=True, null=True, auto_now=True)
     deleted_at = models.DateTimeField(blank=True, null=True)
     remarques = models.TextField(blank=True, null=True)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, models.SET_NULL,
+        blank=True, null=True, related_name='visiteur', verbose_name='compte',
+    )
 
     def __str__(self):
         return f"{str(self.nom).upper()} {self.prenom}"
+
+    @classmethod
+    def par_email(cls, email):
+        """Fiches sans compte dont l'email principal ou secondaire est ``email``."""
+        email = (email or '').strip()
+        if not email:
+            return cls.objects.none()
+        return cls.objects.filter(
+            Q(email__iexact=email) | Q(contacts__type='email', contacts__value__iexact=email),
+            user__isnull=True,
+        ).distinct()
 
     @classmethod
     def find_homonym(cls, nom, prenom, date_de_naissance):

@@ -1,0 +1,18 @@
+{% extends "viale_manager/compte/base.html" %}
+{% block content %}
+{% if not visitor %}
+  <p>Ce compte n'est lié à aucune fiche visiteur. Contactez l'accueil de la Viale.</p>
+{% else %}
+  <h2 class="text-lg font-medium">{{ visitor.prenom }} {{ visitor.nom }}</h2>
+  <dl class="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 mt-2 mb-6">
+    <dt class="text-gray-500">Email</dt><dd>{{ visitor.email|default:"—" }}</dd>
+    <dt class="text-gray-500">Téléphone</dt><dd>{{ visitor.phone|default:"—" }}</dd>
+    <dt class="text-gray-500">Naissance</dt><dd>{{ visitor.date_de_naissance|date:"j F Y"|default:"—" }}</dd>
+  </dl>
+
+  <h3 class="font-medium mb-2">Séjours en cours et à venir</h3>
+  {% include "viale_manager/compte/_sejours.html" with sejours=a_venir vide="Aucun séjour prévu." %}
+  <h3 class="font-medium mt-6 mb-2">Séjours passés</h3>
+  {% include "viale_manager/compte/_sejours.html" with sejours=passes vide="Aucun séjour passé." %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "viale_manager/compte/base.html" %}
+{% block title %}Lien invalide{% endblock %}
+{% block heading %}Lien invalide{% endblock %}
+{% block content %}
+<p>Ce lien a expiré, a déjà servi, ou ne correspond plus à aucune fiche disponible.</p>
+<p class="mt-4"><a class="underline text-emerald-700" href="{% url 'compte_inscription' %}">Demander un nouveau lien</a></p>
+{% endblock %}

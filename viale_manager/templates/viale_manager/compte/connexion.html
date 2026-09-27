@@ -1,0 +1,17 @@
+{% extends "viale_manager/compte/base.html" %}
+{% block title %}Connexion{% endblock %}
+{% block heading %}Connexion{% endblock %}
+{% block content %}
+<form method="post">{% csrf_token %}
+  {% for e in form.non_field_errors %}<p class="text-red-600 text-sm mb-4">{{ e }}</p>{% endfor %}
+  {% with field=form.username %}{% include "viale_manager/compte/_field.html" %}{% endwith %}
+  <label class="block mb-4">
+    <span class="text-sm text-gray-600">Mot de passe</span>
+    <input type="password" name="password" autocomplete="current-password" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+  </label>
+  <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Se connecter</button>
+</form>
+<p class="text-sm text-gray-500 mt-6">
+  Pas encore de compte, ou mot de passe oublié ? <a class="underline" href="{% url 'compte_inscription' %}">Recevoir un lien</a>
+</p>
+{% endblock %}

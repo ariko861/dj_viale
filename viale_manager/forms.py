@@ -1,4 +1,6 @@
 from django import forms
+from django.contrib.auth import password_validation
+from django.contrib.auth.forms import AuthenticationForm
 from unfold.forms import BaseDialogForm
 from unfold.widgets import (
     UnfoldAdminEmailInputWidget,
@@ -10,7 +12,7 @@ from unfold.widgets import (
     UnfoldBooleanSwitchWidget,
 )
 
-from viale_manager.models import Profiles, Reservations, Sejours
+from viale_manager.models import Profiles, Reservations, Sejours, Visitors
 
 
 class ReservationLinkForm(forms.ModelForm):
@@ -211,3 +213,55 @@ class SejourBreakDialogForm(BaseDialogForm):
         elif s.departure_date and end >= s.departure_date:
             self.add_error('end', "Le retour doit être avant la date de départ.")
         return cleaned
+
+
+class InscriptionForm(forms.Form):
+    email = forms.EmailField(label='Email')
+
+    def clean_email(self):
+        return self.cleaned_data['email'].strip().lower()
+
+
+class ActivationForm(forms.Form):
+    """Choix de la fiche (si plusieurs) et du mot de passe, après vérification de l'email."""
+
+    visitor = forms.ModelChoiceField(
+        queryset=Visitors.objects.none(), widget=forms.RadioSelect, empty_label=None,
+        label='Quelle fiche est la vôtre ?',
+    )
+    password1 = forms.CharField(label='Mot de passe', widget=forms.PasswordInput)
+    password2 = forms.CharField(label='Confirmation', widget=forms.PasswordInput)
+
+    def __init__(self, *args, fiches=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if fiches is None:
+            # Compte existant : seul le mot de passe change.
+            del self.fields['visitor']
+        else:
+            self.fields['visitor'].queryset = fiches
+            if fiches.count() == 1:
+                self.fields['visitor'].initial = fiches.first()
+                self.fields['visitor'].widget = forms.HiddenInput()
+
+    def clean(self):
+        cleaned = super().clean()
+        p1, p2 = cleaned.get('password1'), cleaned.get('password2')
+        if p1 and p2 and p1 != p2:
+            self.add_error('password2', "Les mots de passe ne correspondent pas.")
+        elif p1:
+            try:
+                password_validation.validate_password(p1)
+            except forms.ValidationError as e:
+                self.add_error('password1', e)
+        return cleaned
+
+
+class ConnexionForm(AuthenticationForm):
+    """Connexion par email (l'email, en minuscules, sert de nom d'utilisateur)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].label = 'Email'
+
+    def clean_username(self):
+        return self.cleaned_data['username'].strip().lower()

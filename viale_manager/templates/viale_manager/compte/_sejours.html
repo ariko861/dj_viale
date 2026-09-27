@@ -1,0 +1,10 @@
+<ul class="divide-y divide-gray-100 text-sm">
+  {% for s in sejours %}
+  <li class="py-2 flex justify-between gap-4">
+    <span>Du {{ s.arrival_date|date:"j F Y" }} au {{ s.departure_date|date:"j F Y"|default:"—" }}</span>
+    <span class="text-gray-500">{% if s.nuitees is not None %}{{ s.nuitees }} nuit{{ s.nuitees|pluralize }}{% endif %}</span>
+  </li>
+  {% empty %}
+  <li class="py-2 text-gray-500">{{ vide }}</li>
+  {% endfor %}
+</ul>

@@ -607,3 +607,85 @@ class MaisonneesTests(TestCase):
         nouveau = MaisonneesPlanning.objects.latest('id')
         self.assertRedirects(resp, reverse('viale_manager:viale_manager_maisonnees', args=[nouveau.id]))
         self.assertEqual(list(nouveau.houses.all()), [self.h1])
+
+
+class CompteVisiteurTests(TestCase):
+
+    def setUp(self):
+        self.jean = Visitors.objects.create(nom='Dupont', prenom='Jean', email='famille@example.com', confirmed=False)
+        Sejours.objects.create(reservation=_reservation(), visitor=self.jean,
+                               arrival_date=date.today() + timedelta(days=3), departure_date=date.today() + timedelta(days=5))
+
+    def demander_lien(self, email):
+        import re
+
+        mail.outbox.clear()
+        resp = self.client.post(reverse('compte_inscription'), {'email': email})
+        self.assertTemplateUsed(resp, 'viale_manager/compte/inscription_envoyee.html')
+        if not mail.outbox:
+            return None
+        return re.search(r'http://testserver(/viale/compte/activer/[^/\s"]+/)', mail.outbox[0].body).group(1)
+
+    def activer(self, lien, **data):
+        return self.client.post(lien, {'password1': 'Un-mot-de-passe-solide', 'password2': 'Un-mot-de-passe-solide', **data})
+
+    def test_email_inconnu_meme_reponse_sans_mail(self):
+        self.assertIsNone(self.demander_lien('inconnu@example.com'))
+
+    def test_creation_du_compte(self):
+        lien = self.demander_lien('Famille@Example.com')
+        resp = self.activer(lien, visitor=self.jean.pk)
+        self.assertRedirects(resp, reverse('compte'))
+
+        self.jean.refresh_from_db()
+        user = self.jean.user
+        self.assertEqual((user.username, user.is_staff), ('famille@example.com', False))
+        self.assertContains(self.client.get(reverse('compte')), 'Séjours en cours et à venir')
+        # Le lien ne sert qu'une fois.
+        self.assertEqual(self.client.get(lien).status_code, 400)
+
+    def test_email_secondaire(self):
+        VisitorContacts.objects.create(visitor=self.jean, type='email', value='perso@example.com')
+        lien = self.demander_lien('perso@example.com')
+        self.activer(lien, visitor=self.jean.pk)
+        self.jean.refresh_from_db()
+        self.assertEqual(self.jean.user.username, 'perso@example.com')
+
+    def test_email_partage_choix_de_la_fiche(self):
+        lea = Visitors.objects.create(nom='Dupont', prenom='Léa', email='famille@example.com', confirmed=False)
+        lien = self.demander_lien('famille@example.com')
+        self.assertContains(self.client.get(lien), 'Plusieurs personnes utilisent cet email')
+
+        self.activer(lien, visitor=lea.pk)
+        lea.refresh_from_db()
+        self.jean.refresh_from_db()
+        self.assertIsNotNone(lea.user)
+        self.assertIsNone(self.jean.user)
+
+    def test_fiche_deja_liee_exclue(self):
+        from core.models import User
+
+        self.jean.user = User.objects.create_user(username='autre@example.com')
+        self.jean.save()
+        self.assertIsNone(self.demander_lien('famille@example.com'))
+
+    def test_mot_de_passe_oublie(self):
+        self.activer(self.demander_lien('famille@example.com'), visitor=self.jean.pk)
+        self.client.logout()
+
+        lien = self.demander_lien('famille@example.com')
+        self.assertIn('nouveau mot de passe', mail.outbox[0].body)
+        self.client.post(lien, {'password1': 'Autre-mot-de-passe-9', 'password2': 'Autre-mot-de-passe-9'})
+        self.assertEqual(self.client.get(lien).status_code, 400)
+        self.client.logout()
+
+        connexion = reverse('compte_connexion')
+        resp = self.client.post(connexion, {'username': 'FAMILLE@example.com', 'password': 'Autre-mot-de-passe-9'})
+        self.assertRedirects(resp, reverse('compte'))
+
+    def test_lien_falsifie_et_admin_interdite(self):
+        self.assertEqual(self.client.get(reverse('compte_activer', args=['nimp'])).status_code, 400)
+        self.activer(self.demander_lien('famille@example.com'), visitor=self.jean.pk)
+        resp = self.client.get(reverse('viale_manager:index'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('login', resp.url)

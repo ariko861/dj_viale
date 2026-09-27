@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Mon compte{% endblock %} — La Viale</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800">
+<div class="max-w-xl mx-auto px-4 py-8">
+  <div class="flex items-baseline justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">{% block heading %}Mon compte{% endblock %}</h1>
+      <p class="text-gray-500">La Viale — quartier Gallet</p>
+    </div>
+    {% if user.is_authenticated %}
+    <form method="post" action="{% url 'compte_deconnexion' %}">{% csrf_token %}
+      <button type="submit" class="text-sm text-gray-500 underline">Se déconnecter</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+</body>
+</html>

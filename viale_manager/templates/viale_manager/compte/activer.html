@@ -1,0 +1,24 @@
+{% extends "viale_manager/compte/base.html" %}
+{% block title %}{% if existe %}Nouveau mot de passe{% else %}Activer mon compte{% endif %}{% endblock %}
+{% block heading %}{% if existe %}Nouveau mot de passe{% else %}Activer mon compte{% endif %}{% endblock %}
+{% block content %}
+<p class="text-sm text-gray-600 mb-4">Compte : <strong>{{ email }}</strong></p>
+<form method="post">{% csrf_token %}
+  {% if form.visitor %}
+    {% if form.visitor.is_hidden %}
+      {{ form.visitor }}
+    {% else %}
+      <fieldset class="mb-4">
+        <legend class="text-sm text-gray-600 mb-2">{{ form.visitor.label }} Plusieurs personnes utilisent cet email.</legend>
+        {% for radio in form.visitor %}
+          <label class="flex items-center gap-2 py-1">{{ radio.tag }} {{ radio.choice_label }}</label>
+        {% endfor %}
+        {% for e in form.visitor.errors %}<span class="block text-red-600 text-sm">{{ e }}</span>{% endfor %}
+      </fieldset>
+    {% endif %}
+  {% endif %}
+  {% with field=form.password1 %}{% include "viale_manager/compte/_field.html" %}{% endwith %}
+  {% with field=form.password2 %}{% include "viale_manager/compte/_field.html" %}{% endwith %}
+  <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Enregistrer</button>
+</form>
+{% endblock %}
