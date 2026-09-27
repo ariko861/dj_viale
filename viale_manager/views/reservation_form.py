@@ -257,7 +257,7 @@ class ReservationFormView(View):
 
     @staticmethod
     def _get_visitor(c, sejour, is_groupe):
-        """Visiteur du séjour : existant (complété) ou nouvellement créé."""
+        """Visiteur du séjour : existant (choisi ou homonyme, complété) ou nouvellement créé."""
         if is_groupe:
             # Les visiteurs d'un groupe sont propres à la réservation : on renomme.
             if sejour is not None:
@@ -268,17 +268,23 @@ class ReservationFormView(View):
             return Visitors.objects.create(nom=c['nom'], prenom=c['prenom'], confirmed=False)
 
         visitor = Visitors.objects.filter(id=c['visitor_id']).first() if c['visitor_id'] else None
+        # Fiche choisie via l'email exact : on peut mettre ses coordonnées à jour.
+        verifie = visitor is not None
+        if visitor is None:
+            # Sinon on évite le doublon en reprenant la fiche de même nom,
+            # prénom et naissance, sans écraser ses coordonnées.
+            visitor = Visitors.find_homonym(c['nom'], c['prenom'], c['dob'])
         if visitor is None:
             return Visitors.objects.create(
                 nom=c['nom'], prenom=c['prenom'],
                 email=c['email'] or None, phone=c['phone'] or None,
                 date_de_naissance=c['dob'], confirmed=False,
             )
-        if c['phone']:
-            visitor.phone = c['phone']
+        visitor.set_coordonnee('email', c['email'], replace=verifie)
+        visitor.set_coordonnee('phone', c['phone'], replace=verifie)
         if c['dob']:
             visitor.date_de_naissance = c['dob']
-        visitor.save(update_fields=['phone', 'date_de_naissance', 'updated_at'])
+        visitor.save(update_fields=['email', 'phone', 'remarques', 'date_de_naissance', 'updated_at'])
         return visitor
 
 

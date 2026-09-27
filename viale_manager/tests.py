@@ -129,6 +129,37 @@ class ReservationFormTests(TestCase):
         self.assertEqual([(v.nom, v.prenom) for v in visitors], [('Scouts', 'Léa'), ('Scouts', 'Paul')])
 
 
+    def test_homonyme_repris_sans_ecraser_ses_coordonnees(self):
+        existant = Visitors.objects.create(
+            nom='Dupont', prenom='Jean', date_de_naissance=date(1990, 1, 1),
+            email='ancien@example.com', confirmed=False,
+        )
+        r = _reservation()
+        data = self.payload()
+        data['sejours'][0].update(nom=' dupont ', prenom='JEAN', email='nouveau@example.com', phone='0499')
+        self.assertEqual(self.post(r, data).status_code, 200)
+
+        self.assertEqual(Visitors.objects.count(), 1)
+        existant.refresh_from_db()
+        self.assertEqual(Sejours.objects.get(reservation=r).visitor_id, existant.id)
+        self.assertEqual((existant.email, existant.phone), ('ancien@example.com', '0499'))
+        self.assertIn('nouveau@example.com', existant.remarques)
+
+    def test_autre_naissance_cree_un_nouveau_visiteur(self):
+        Visitors.objects.create(nom='Dupont', prenom='Jean', date_de_naissance=date(1985, 1, 1), confirmed=False)
+        self.post(_reservation(), self.payload())
+        self.assertEqual(Visitors.objects.count(), 2)
+
+    def test_visiteur_choisi_par_email_met_a_jour_ses_coordonnees(self):
+        v = Visitors.objects.create(nom='Dupont', prenom='Jean', email='jean@example.com', phone='0470', confirmed=False)
+        r = _reservation()
+        data = self.payload()
+        data['sejours'][0].update(visitorId=v.id, phone='0499')
+        self.post(r, data)
+        v.refresh_from_db()
+        self.assertEqual(v.phone, '0499')
+        self.assertIn('0470', v.remarques)
+
 class ReservationLinkFormTests(TestCase):
 
     def test_groupe_exige_nom_et_contact(self):
