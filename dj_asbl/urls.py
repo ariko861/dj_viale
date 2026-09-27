@@ -15,7 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.generic import RedirectView
 
 from viale_manager.admin import viale_admin
 from viale_manager.views.accueil import accueil
@@ -25,5 +26,11 @@ urlpatterns = [
     path('accueil/', viale_admin.urls),
     path('viale/', include('viale_manager.urls')),
     path('', accueil, name='home'),
+    # Liens de l'ancien viale-manager (Laravel), si son domaine pointe ici.
+    re_path(
+        r'^(?:confirmation|confirmed)/(?P<token>[0-9a-f-]{36})/?$',
+        RedirectView.as_view(pattern_name='reservation_form'),
+        name='ancien_lien_reservation',
+    ),
     path('', include('core.urls')),
 ]

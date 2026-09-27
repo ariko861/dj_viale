@@ -783,3 +783,13 @@ class EnvoiTests(TestCase):
             self.assertIn('a@example.com', logs.output[0])
             with self.assertRaises(SMTPException):
                 _send(msg, silent=False)
+
+
+class AnciensLiensTests(TestCase):
+
+    def test_liens_laravel_rediriges_vers_le_formulaire(self):
+        token = uuid.uuid4()
+        attendu = reverse('reservation_form', args=[token])
+        for chemin in (f'/confirmation/{token}', f'/confirmed/{token}', f'/confirmation/{token}/'):
+            self.assertRedirects(self.client.get(chemin), attendu, fetch_redirect_response=False)
+        self.assertEqual(self.client.get('/confirmation/pas-un-token').status_code, 404)
