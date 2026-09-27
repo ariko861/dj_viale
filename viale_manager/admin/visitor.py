@@ -7,6 +7,8 @@ from django.db.models.functions import Lower, Trim
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 
+from viale_manager.forms import EnvoiEmailForm
+from viale_manager.mailing import send_message
 from viale_manager.models import VisitorContacts, Visitors
 from viale_manager.models.visitor import FusionImpossible
 from .site import viale_admin
@@ -53,7 +55,7 @@ class VisitorAdmin(ModelAdmin):
     list_display = ['nom', 'prenom', 'date_de_naissance', 'email', 'phone', 'nb_sejours', 'confirmed']
     list_filter = [DoublonsFilter, 'confirmed']
     readonly_fields = ['created_at', 'updated_at']
-    actions = ['fusionner', 'fusionner_doublons_evidents']
+    actions = ['envoyer_email', 'fusionner', 'fusionner_doublons_evidents']
 
     def get_readonly_fields(self, request, obj=None):
         # Attribuer un compte donne accès aux séjours de la fiche : réservé aux superusers.
@@ -68,6 +70,40 @@ class VisitorAdmin(ModelAdmin):
     @admin.display(description='séjours', ordering='sejours_count')
     def nb_sejours(self, obj):
         return obj.sejours_count
+
+    @admin.action(description='Envoyer un email', permissions=['change'])
+    def envoyer_email(self, request, queryset):
+        """Email libre aux visiteurs sélectionnés : une page demande le sujet et le message."""
+        visitors = list(queryset)
+        adresses = {v.email.strip().lower() for v in visitors if v.email and v.email.strip()}
+        sans_email = sum(1 for v in visitors if not (v.email and v.email.strip()))
+
+        form = EnvoiEmailForm(request.POST if request.POST.get('apply') else None)
+        if form.is_valid():
+            envoyes, echecs = send_message(adresses, form.cleaned_data['sujet'], form.cleaned_data['message'])
+            self.message_user(request, f"Email envoyé à {envoyes} adresse(s).", messages.SUCCESS)
+            if sans_email:
+                self.message_user(request, f"{sans_email} visiteur(s) sans email ignoré(s).", messages.WARNING)
+            if echecs:
+                self.message_user(
+                    request, f"Échec de l'envoi à {len(echecs)} adresse(s) : {', '.join(echecs)}.", messages.ERROR,
+                )
+            return None
+
+        request.current_app = self.admin_site.name
+        return TemplateResponse(request, 'viale_manager/admin/visitors_email.html', {
+            **self.admin_site.each_context(request),
+            'title': 'Envoyer un email',
+            'opts': self.model._meta,
+            'form': form,
+            'nb_visiteurs': len(visitors),
+            'nb_adresses': len(adresses),
+            'sans_email': sans_email,
+            'action': 'envoyer_email',
+            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            'select_across': request.POST.get('select_across') == '1',
+            'selected': request.POST.getlist(helpers.ACTION_CHECKBOX_NAME),
+        })
 
     @admin.action(description='Fusionner les visiteurs sélectionnés', permissions=['delete'])
     def fusionner(self, request, queryset):

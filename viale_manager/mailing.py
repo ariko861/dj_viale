@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils.html import strip_tags
+from django.utils.html import linebreaks, strip_tags
 
 from viale_manager.models import AutoMails, Sejours
 
@@ -126,3 +126,28 @@ def send_reservation_confirmed(request, reservation):
             reply_to=config.VIALE_EMAIL,
         )
 
+
+
+def send_message(emails, sujet, message):
+    """Envoie un message libre (texte), un email par adresse, avec la Viale en reply-to.
+
+    :param emails: adresses destinataires (doublons et vides ignorés).
+    :param message: texte brut ; les retours à la ligne sont conservés en HTML.
+    :return: ``(envoyes, echecs)``, les échecs étant les adresses non jointes.
+    """
+    html = linebreaks(message, autoescape=True)
+    envoyes, echecs = 0, []
+    for email in sorted({e.strip() for e in emails if e and e.strip()}):
+        msg = EmailMultiAlternatives(
+            subject=sujet,
+            body=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+            reply_to=[config.VIALE_EMAIL] if config.VIALE_EMAIL else None,
+        )
+        msg.attach_alternative(html, 'text/html')
+        if _send(msg):
+            envoyes += 1
+        else:
+            echecs.append(email)
+    return envoyes, echecs

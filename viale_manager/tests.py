@@ -831,3 +831,40 @@ class CompteAttribueTests(TestCase):
         self.assertEqual(self.post().status_code, 302)
         self.visitor.refresh_from_db()
         self.assertEqual(self.visitor.user, self.compte)
+
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+@override_config(VIALE_EMAIL='accueil@viale.test')
+class EnvoiEmailVisiteursTests(TestCase):
+
+    def setUp(self):
+        self.client.force_login(User.objects.create_superuser(username='admin', password='x'))
+        self.url = reverse('viale_manager:viale_manager_visitors_changelist')
+        mk = lambda prenom, email: Visitors.objects.create(nom='Dupont', prenom=prenom, email=email, confirmed=False).pk
+        self.pks = [mk('Jean', 'famille@example.com'), mk('Léa', 'Famille@example.com '), mk('Paul', None),
+                    mk('Anne', 'anne@example.com')]
+
+    def test_envoi(self):
+        base = {'action': 'envoyer_email', '_selected_action': self.pks}
+        resp = self.client.post(self.url, base)
+        self.assertTemplateUsed(resp, 'viale_manager/admin/visitors_email.html')
+        self.assertContains(resp, '2 adresse(s)')
+        self.assertEqual(len(mail.outbox), 0)
+
+        resp = self.client.post(self.url, {**base, 'apply': '1', 'sujet': 'Bonjour',
+                                           'message': 'Ligne 1\nLigne <2>'}, follow=True)
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['anne@example.com', 'famille@example.com'])
+        msg = mail.outbox[0]
+        self.assertEqual((msg.subject, msg.reply_to), ('Bonjour', ['accueil@viale.test']))
+        self.assertIn('Ligne 1<br>Ligne &lt;2&gt;', msg.alternatives[0].content)
+        self.assertContains(resp, 'Email envoyé à 2 adresse(s)')
+        self.assertContains(resp, '1 visiteur(s) sans email')
+
+    def test_sujet_obligatoire(self):
+        resp = self.client.post(self.url, {'action': 'envoyer_email', '_selected_action': self.pks,
+                                           'apply': '1', 'sujet': '', 'message': 'x'})
+        self.assertTemplateUsed(resp, 'viale_manager/admin/visitors_email.html')
+        self.assertEqual(len(mail.outbox), 0)

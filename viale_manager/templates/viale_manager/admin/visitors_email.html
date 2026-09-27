@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<form method="post" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="action" value="{{ action }}">
+  <input type="hidden" name="apply" value="1">
+  {# Ids cochés sur la page ; avec « tout sélectionner », select_across refait passer le filtre (URL). #}
+  {% for pk in selected %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ pk }}">{% endfor %}
+  {% if select_across %}<input type="hidden" name="select_across" value="1">{% endif %}
+
+  <p class="mb-4">
+    {{ nb_visiteurs }} visiteur(s) sélectionné(s) : l'email partira à <strong>{{ nb_adresses }} adresse(s)</strong>
+    (une seule fois par adresse, avec la Viale en adresse de réponse).
+    {% if sans_email %}{{ sans_email }} visiteur(s) sans email ne le recevront pas.{% endif %}
+  </p>
+
+  <div class="flex flex-col gap-4 max-w-3xl">
+    {% for field in form %}
+      {% include "unfold/helpers/field.html" %}
+    {% endfor %}
+  </div>
+
+  <div class="flex gap-2 mt-6">
+    <button type="submit" class="bg-primary-600 text-white font-medium px-3 py-2 rounded-default"{% if not nb_adresses %} disabled{% endif %}>Envoyer</button>
+    <a href="" class="border border-base-200 px-3 py-2 rounded-default dark:border-base-700">Annuler</a>
+  </div>
+</form>
+{% endblock %}

@@ -290,3 +290,13 @@ class ConnexionForm(AuthenticationForm):
 
     def clean_username(self):
         return self.cleaned_data['username'].strip().lower()
+
+
+class EnvoiEmailForm(forms.Form):
+    """Email libre aux visiteurs sélectionnés (action de l'admin)."""
+
+    sujet = forms.CharField(label='Sujet', max_length=200, widget=UnfoldAdminTextInputWidget)
+    message = forms.CharField(
+        label='Message', widget=UnfoldAdminTextareaWidget(attrs={'rows': 10}),
+        help_text="Texte simple ; les retours à la ligne sont conservés.",
+    )
