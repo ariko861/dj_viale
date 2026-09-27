@@ -23,15 +23,21 @@ def send_confirmation_auto_mails(recipient_emails):
         type=AutoMails.TypeAutoMail.CONFIRMATION, actif=True,
     ))
     for mail in mails:
-        for email in recipients:
-            msg = EmailMultiAlternatives(
-                subject=mail.sujet,
-                body=strip_tags(mail.body),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[email],
-            )
-            msg.attach_alternative(mail.body, 'text/html')
-            msg.send(fail_silently=True)
+        send_auto_mail(mail, recipients)
+
+
+def send_auto_mail(mail, recipients):
+    """Envoie un email automatique, un message par destinataire."""
+    for email in recipients:
+        msg = EmailMultiAlternatives(
+            subject=mail.sujet,
+            body=strip_tags(mail.body),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+            reply_to=[config.VIALE_EMAIL] if config.VIALE_EMAIL else None,
+        )
+        msg.attach_alternative(mail.body, 'text/html')
+        msg.send(fail_silently=True)
 
 
 def _send_html(subject, template, context, to, reply_to=None, fail_silently=True):

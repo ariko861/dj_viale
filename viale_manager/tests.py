@@ -161,3 +161,34 @@ class SendLinkTests(TestCase):
         self.assertTrue(r.authorize_edition)
         self.assertEqual(mail.outbox[0].to, ['contact@example.com'])
         self.assertIn(str(r.link_token), mail.outbox[0].body)
+
+
+class ArrivalMailsTests(TestCase):
+
+    def test_envoi_aux_arrivees_visees(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        from viale_manager.models import AutoMails
+
+        AutoMails.objects.create(sujet='Rappel', body='<p>Bientôt</p>', type='arrival', time_delta=-5, actif=True)
+        AutoMails.objects.create(sujet='Inactif', body='x', type='arrival', time_delta=-5, actif=False)
+        r = _reservation(contact_email='contact@example.com')
+        dans_5_jours = date.today() + timedelta(days=5)
+
+        def sejour(email, arrival, confirmed=True):
+            v = Visitors.objects.create(nom='X', prenom='Y', email=email, confirmed=False)
+            Sejours.objects.create(reservation=r, visitor=v, arrival_date=arrival, confirmed=confirmed)
+
+        sejour('vise@example.com', dans_5_jours)
+        sejour(None, dans_5_jours)
+        sejour('non-confirme@example.com', dans_5_jours, confirmed=False)
+        sejour('autre-date@example.com', dans_5_jours + timedelta(days=1))
+
+        call_command('send_arrival_mails', stdout=StringIO())
+        self.assertEqual(
+            sorted(m.to[0] for m in mail.outbox),
+            ['contact@example.com', 'vise@example.com'],
+        )
+        self.assertTrue(all(m.subject == 'Rappel' for m in mail.outbox))
