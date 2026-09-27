@@ -12,6 +12,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            sql='CREATE SCHEMA IF NOT EXISTS viale_manager',
+            reverse_sql='DROP SCHEMA IF EXISTS viale_manager CASCADE',
+        ),
         migrations.CreateModel(
             name='AutoMails',
             fields=[

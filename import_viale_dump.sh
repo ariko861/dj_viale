@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+source .env
+
 DUMP="./viale_dump.dump"
 PGHOST="${POSTGRES_HOST:-localhost}"
 PGPORT="${POSTGRES_PORT:-5996}"
