@@ -269,3 +269,67 @@ class ReservationAddAdminTests(TestCase):
         self.assertEqual(r.max_visitors, 3)
         prenoms = sorted(Sejours.objects.filter(reservation=r).values_list('visitor__prenom', flat=True))
         self.assertEqual(prenoms, ['Personne 1', 'Personne 2', 'Personne 3'])
+
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class SejourActionsTests(TestCase):
+
+    def setUp(self):
+        self.admin = User.objects.create_superuser(username='admin', email='a@example.com', password='x')
+        self.client.force_login(self.admin)
+        r = _reservation()
+        v = Visitors.objects.create(nom='Dupont', prenom='Jean', confirmed=False)
+        self.arrival = date.today() + timedelta(days=1)
+        self.sejour = Sejours.objects.create(
+            reservation=r, visitor=v, arrival_date=self.arrival,
+            departure_date=self.arrival + timedelta(days=10), price=20, confirmed=True,
+        )
+
+    def url(self, name, sejour=None):
+        return reverse(f'viale_manager:viale_manager_sejours_action_{name}', args=[(sejour or self.sejour).id])
+
+    def post(self, name, sejour=None, **data):
+        return self.client.post(self.url(name, sejour), {'_form_submitted': 'on', **data})
+
+    def test_dialog_s_affiche_avec_les_dates(self):
+        resp = self.client.get(self.url('edit_dates'))
+        self.assertContains(resp, self.arrival.isoformat())
+
+    def test_modifier_les_dates(self):
+        resp = self.post('edit_dates', arrival_date=self.arrival.isoformat(), departure_date='')
+        self.assertIn('HX-Redirect', resp.headers)
+        self.sejour.refresh_from_db()
+        self.assertIsNone(self.sejour.departure_date)
+
+    def test_ajouter_une_absence(self):
+        begin, end = self.arrival + timedelta(days=3), self.arrival + timedelta(days=5)
+        resp = self.post('add_break', begin=begin.isoformat(), end=end.isoformat())
+        self.assertIn('HX-Redirect', resp.headers)
+        premier, reprise = Sejours.objects.order_by('arrival_date')
+        self.assertEqual((premier.arrival_date, premier.departure_date), (self.arrival, begin))
+        self.assertEqual((reprise.arrival_date, reprise.departure_date), (end, self.arrival + timedelta(days=10)))
+        self.assertEqual((reprise.visitor_id, reprise.price, reprise.confirmed), (premier.visitor_id, 20, True))
+
+    def test_absence_hors_du_sejour_refusee(self):
+        resp = self.post('add_break', begin=self.arrival.isoformat(), end=(self.arrival + timedelta(days=20)).isoformat())
+        self.assertNotIn('HX-Redirect', resp.headers)
+        self.assertEqual(Sejours.objects.count(), 1)
+
+    def test_annuler(self):
+        self.post('cancel')
+        self.assertFalse(Sejours.objects.exists())
+
+    def test_sejour_termine_non_annulable_sauf_superuser(self):
+        from django.contrib.auth.models import Permission
+
+        self.sejour.arrival_date = date.today() - timedelta(days=10)
+        self.sejour.departure_date = date.today() - timedelta(days=5)
+        self.sejour.save()
+        staff = User.objects.create_user(username='accueil', password='x', is_staff=True)
+        staff.user_permissions.add(*Permission.objects.filter(codename__in=['view_sejours', 'delete_sejours']))
+        self.client.force_login(staff)
+        self.post('cancel')
+        self.assertTrue(Sejours.objects.exists())

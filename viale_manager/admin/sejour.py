@@ -1,14 +1,20 @@
 import uuid
+from datetime import date
 
 from django.contrib import admin, messages
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
+from unfold.decorators import action
+from unfold.forms import BaseDialogForm
 from unfold.sections import TemplateSection
 
-from viale_manager.forms import ReservationAddForm, SejourInlineForm, SejourInlineFormSet
+from viale_manager.forms import (
+    ReservationAddForm, SejourBreakDialogForm, SejourDatesDialogForm, SejourInlineForm, SejourInlineFormSet,
+)
 from viale_manager.models import Reservations, Sejours, Visitors
 from .site import viale_admin
 from .widgets import reservations_widget_context
@@ -53,6 +59,53 @@ class SejourAdmin(ModelAdmin):
     readonly_fields = ['visitor', 'reservation', 'created_at', 'updated_at']
     list_sections = [ReservationSection]
     change_list_template = 'viale_manager/admin/sejours_change_list.html'
+
+    actions_row = ['action_edit_dates', 'action_add_break', 'action_cancel']
+
+    def _back_to_list(self, request):
+        """Réponse d'un dialog htmx : recharge la liste (filtres conservés)."""
+        url = request.headers.get('Referer') or reverse('viale_manager:viale_manager_sejours_changelist')
+        return HttpResponse(headers={'HX-Redirect': url})
+
+    @action(
+        description='Modifier les dates', icon='calendar_month', permissions=['change'],
+        dialog={'title': 'Modifier les dates du séjour', 'form_class': SejourDatesDialogForm,
+                'form_submit_text': 'Enregistrer'},
+    )
+    def action_edit_dates(self, request, form, object_id):
+        sejour = form.sejour
+        sejour.arrival_date = form.cleaned_data['arrival_date']
+        sejour.departure_date = form.cleaned_data['departure_date']
+        sejour.save(update_fields=['arrival_date', 'departure_date', 'updated_at'])
+        messages.success(request, f"Dates du séjour de {sejour.visitor} mises à jour.")
+        return self._back_to_list(request)
+
+    @action(
+        description='Ajouter une absence', icon='beach_access', permissions=['change'],
+        dialog={'title': 'Ajouter une absence',
+                'description': "Le séjour est coupé en deux : il se termine au début de l'absence "
+                               "et reprend au retour.",
+                'form_class': SejourBreakDialogForm, 'form_submit_text': 'Créer'},
+    )
+    def action_add_break(self, request, form, object_id):
+        form.sejour.create_break(form.cleaned_data['begin'], form.cleaned_data['end'])
+        messages.success(request, f"Absence ajoutée au séjour de {form.sejour.visitor}.")
+        return self._back_to_list(request)
+
+    @action(
+        description='Annuler le séjour', icon='cancel', permissions=['delete'],
+        dialog={'title': 'Annuler le séjour', 'description': 'Le séjour sera supprimé définitivement.',
+                'form_class': BaseDialogForm, 'form_submit_text': 'Annuler le séjour'},
+    )
+    def action_cancel(self, request, form, object_id):
+        sejour = Sejours.objects.select_related('visitor').get(pk=object_id)
+        # Un séjour terminé fait partie de l'historique : seul un superuser le supprime.
+        if sejour.departure_date and sejour.departure_date < date.today() and not request.user.is_superuser:
+            messages.error(request, "Un séjour terminé ne peut pas être annulé.")
+        else:
+            sejour.delete()
+            messages.warning(request, f"Séjour de {sejour.visitor} annulé.")
+        return self._back_to_list(request)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

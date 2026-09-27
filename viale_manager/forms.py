@@ -1,4 +1,5 @@
 from django import forms
+from unfold.forms import BaseDialogForm
 from unfold.widgets import (
     UnfoldAdminEmailInputWidget,
     UnfoldAdminIntegerFieldWidget,
@@ -160,3 +161,53 @@ class SejourInlineFormSet(forms.BaseInlineFormSet):
             for f in rows:
                 if not f.cleaned_data.get('arrival_date'):
                     f.add_error('arrival_date', "Obligatoire.")
+
+
+class NativeDateWidget(UnfoldAdminTextInputWidget):
+    """Sélecteur de date natif : le calendrier admin ne s'initialise pas dans les dialogs."""
+
+    input_type = 'date'
+
+
+class SejourDatesDialogForm(BaseDialogForm):
+    arrival_date = forms.DateField(label="Date d'arrivée", widget=NativeDateWidget)
+    departure_date = forms.DateField(
+        label='Date de départ', required=False, widget=NativeDateWidget,
+        help_text="Laisser vide si la date de départ n'est pas connue.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sejour = Sejours.objects.get(pk=self.object_id)
+        self.fields['arrival_date'].initial = self.sejour.arrival_date
+        self.fields['departure_date'].initial = self.sejour.departure_date
+
+    def clean(self):
+        cleaned = super().clean()
+        arrival, departure = cleaned.get('arrival_date'), cleaned.get('departure_date')
+        if arrival and departure and departure <= arrival:
+            self.add_error('departure_date', "La date de départ doit être après la date d'arrivée.")
+        return cleaned
+
+
+class SejourBreakDialogForm(BaseDialogForm):
+    begin = forms.DateField(label="Début de l'absence", widget=NativeDateWidget)
+    end = forms.DateField(label='Retour', widget=NativeDateWidget)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sejour = Sejours.objects.get(pk=self.object_id)
+
+    def clean(self):
+        cleaned = super().clean()
+        begin, end = cleaned.get('begin'), cleaned.get('end')
+        if not begin or not end:
+            return cleaned
+        s = self.sejour
+        if begin <= s.arrival_date:
+            self.add_error('begin', "L'absence doit commencer après l'arrivée.")
+        if end <= begin:
+            self.add_error('end', "Le retour doit être après le début de l'absence.")
+        elif s.departure_date and end >= s.departure_date:
+            self.add_error('end', "Le retour doit être avant la date de départ.")
+        return cleaned

@@ -83,6 +83,24 @@ class Sejours(models.Model):
         return self.nuitees * self.price
 
 
+    def create_break(self, begin, end):
+        """Coupe le séjour par une absence du ``begin`` au ``end``.
+
+        Le séjour se termine à ``begin`` ; une copie reprend de ``end`` jusqu'à
+        l'ancien départ.
+
+        :param begin: premier jour d'absence (nouvelle date de départ).
+        :param end: jour du retour (date d'arrivée de la copie).
+        :return: le séjour créé pour la reprise.
+        """
+        reprise = Sejours.objects.get(pk=self.pk)
+        reprise.pk = None
+        reprise.arrival_date = end
+        reprise.save()
+        self.departure_date = begin
+        self.save(update_fields=['departure_date', 'updated_at'])
+        return reprise
+
     def clean(self):
         if self.departure_date and self.departure_date <= self.arrival_date:
             raise ValidationError(
