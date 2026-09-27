@@ -231,6 +231,12 @@ class ReservationAdmin(ModelAdmin):
         messages.success(request, f"Réservation {obj.id} créée.")
         return redirect(reverse('viale_manager:viale_manager_sejours_changelist'))
 
+    def response_change(self, request, obj):
+        # Les réservations n'ont pas de liste dans la sidebar : on revient aux séjours.
+        if '_addanother' in request.POST or '_continue' in request.POST or '_saveasnew' in request.POST:
+            return super().response_change(request, obj)
+        messages.success(request, f"Réservation {obj.id} enregistrée.")
+        return redirect(reverse('viale_manager:viale_manager_sejours_changelist'))
 
 
 viale_admin.register(Sejours, SejourAdmin)

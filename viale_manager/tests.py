@@ -278,6 +278,23 @@ class ReservationAddAdminTests(TestCase):
         payload.update(data)
         return self.client.post(self.url, payload)
 
+    def test_modification_revient_aux_sejours(self):
+        r = _reservation(contact_email='contact@example.com')
+        url = reverse('viale_manager:viale_manager_reservations_change', args=[r.pk])
+        data = {
+            'max_days_change': 2, 'max_visitors': 5, 'contact_email': 'nouveau@example.com',
+            'contact_phone': '', 'remarques_visiteur': '', 'remarques_accueil': '', 'nom_groupe': '',
+            'authorize_edition': 'on',
+            'sejours_set-TOTAL_FORMS': 0, 'sejours_set-INITIAL_FORMS': 0,
+            'sejours_set-MIN_NUM_FORMS': 0, 'sejours_set-MAX_NUM_FORMS': 1000,
+        }
+        resp = self.client.post(url, data)
+        self.assertRedirects(resp, reverse('viale_manager:viale_manager_sejours_changelist'),
+                             fetch_redirect_response=False)
+        r.refresh_from_db()
+        self.assertEqual(r.contact_email, 'nouveau@example.com')
+        self.assertRedirects(self.client.post(url, {**data, '_continue': '1'}), url, fetch_redirect_response=False)
+
     def test_page_ajout_s_affiche(self):
         self.assertEqual(self.client.get(self.url).status_code, 200)
 
