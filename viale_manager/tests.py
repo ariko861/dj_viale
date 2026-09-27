@@ -793,3 +793,41 @@ class AnciensLiensTests(TestCase):
         for chemin in (f'/confirmation/{token}', f'/confirmed/{token}', f'/confirmation/{token}/'):
             self.assertRedirects(self.client.get(chemin), attendu, fetch_redirect_response=False)
         self.assertEqual(self.client.get('/confirmation/pas-un-token').status_code, 404)
+
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class CompteAttribueTests(TestCase):
+
+    def setUp(self):
+        self.visitor = Visitors.objects.create(nom='Dupont', prenom='Jean', confirmed=False)
+        self.compte = User.objects.create_user(username='jean@example.com')
+        self.url = reverse('viale_manager:viale_manager_visitors_change', args=[self.visitor.pk])
+
+    def post(self):
+        return self.client.post(self.url, {
+            'nom': 'Dupont', 'prenom': 'Jean', 'confirmed': '', 'user': self.compte.pk,
+            'contacts-TOTAL_FORMS': 0, 'contacts-INITIAL_FORMS': 0,
+            'contacts-MIN_NUM_FORMS': 0, 'contacts-MAX_NUM_FORMS': 1000,
+        })
+
+    def test_equipe_ne_peut_pas_changer_le_compte(self):
+        from django.contrib.auth.models import Permission
+
+        staff = User.objects.create_user(username='accueil', password='x', is_staff=True)
+        staff.user_permissions.add(*Permission.objects.filter(codename__in=['view_visitors', 'change_visitors']))
+        self.client.force_login(staff)
+        self.assertNotContains(self.client.get(self.url), 'name="user"')
+
+        self.assertEqual(self.post().status_code, 302)
+        self.visitor.refresh_from_db()
+        self.assertIsNone(self.visitor.user)
+
+    def test_superuser_peut_changer_le_compte(self):
+        self.client.force_login(User.objects.create_superuser(username='admin', password='x'))
+        self.assertContains(self.client.get(self.url), 'name="user"')
+        self.assertEqual(self.post().status_code, 302)
+        self.visitor.refresh_from_db()
+        self.assertEqual(self.visitor.user, self.compte)

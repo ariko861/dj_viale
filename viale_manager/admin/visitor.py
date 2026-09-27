@@ -55,6 +55,11 @@ class VisitorAdmin(ModelAdmin):
     readonly_fields = ['created_at', 'updated_at']
     actions = ['fusionner', 'fusionner_doublons_evidents']
 
+    def get_readonly_fields(self, request, obj=None):
+        # Attribuer un compte donne accès aux séjours de la fiche : réservé aux superusers.
+        readonly = super().get_readonly_fields(request, obj)
+        return readonly if request.user.is_superuser else [*readonly, 'user']
+
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
             sejours_count=Count('sejours', distinct=True), dernier_sejour=Max('sejours__arrival_date'),
