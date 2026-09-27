@@ -57,6 +57,7 @@ UNFOLD = {
     'SITE_DROPDOWN': UNFOLD_SITE_DROPDOWN,
     'SHOW_BACK_BUTTON': True,
     'DASHBOARD_CALLBACK': 'core.checks.dashboard_callback',
+    'TABS': 'core.admin.tabs.onglets_annees',
     'SIDEBAR': {
         'show_search': True,
         'show_all_applications': True,

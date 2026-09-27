@@ -141,6 +141,15 @@ class AnneeTests(TestCase):
             '2025/Documents généraux/comptes.pdf',
         ])
 
+    def test_onglets_annees(self):
+        self.client.force_login(User.objects.create_superuser(username='admin', password='x'))
+        resp = self.client.get('/admin/core/documentreunion/?annee=2026')
+        self.assertContains(resp, 'href="/admin/core/documentreunion/?annee=2025"')
+        self.assertContains(resp, 'href="/admin/core/documentreunion/?annee=2026"')
+        onglets = {i['title']: i['active'] for i in resp.context['tab_list'][1]['items']}
+        self.assertEqual(onglets, {'Toutes': False, '2026': True, '2025': False})
+        self.assertContains(self.client.get('/admin/core/reunion/'), 'href="/admin/core/reunion/?annee=2025"')
+
     def test_filtre_par_annee_dans_l_admin(self):
         self.client.force_login(User.objects.create_superuser(username='admin', password='x'))
         self.assertEqual(self.client.get('/admin/core/reunion/?annee=2025').status_code, 200)
