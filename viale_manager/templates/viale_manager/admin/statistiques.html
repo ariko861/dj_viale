@@ -1,0 +1,57 @@
+{% extends "admin/base_site.html" %}
+{% load unfold %}
+
+{% block content %}
+  {% include "viale_manager/admin/_periode_form.html" %}
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    {% component "unfold/components/card.html" %}
+      <p class="text-sm text-base-500">Nuitées</p><p class="text-2xl font-semibold text-important">{{ totaux.nuitees|floatformat:"0g" }}</p>
+    {% endcomponent %}
+    {% component "unfold/components/card.html" %}
+      <p class="text-sm text-base-500">Revenus</p><p class="text-2xl font-semibold text-important">{{ totaux.revenus|floatformat:"2g" }} €</p>
+    {% endcomponent %}
+    {% component "unfold/components/card.html" %}
+      <p class="text-sm text-base-500">Séjours</p><p class="text-2xl font-semibold text-important">{{ totaux.sejours }}</p>
+    {% endcomponent %}
+    {% component "unfold/components/card.html" %}
+      <p class="text-sm text-base-500">Visiteurs</p><p class="text-2xl font-semibold text-important">{{ totaux.visiteurs }}</p>
+    {% endcomponent %}
+  </div>
+
+  <p class="text-sm text-base-500 mb-2">
+    Séjours confirmés, hors « retirer des statistiques ». Seules les nuits comprises dans la période sont comptées ;
+    un séjour sans date de départ est compté jusqu'à aujourd'hui.
+  </p>
+
+  {% component "unfold/components/card.html" %}
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-base-500">
+      <th class="py-2 pr-4">Visiteur</th><th class="py-2 pr-4">Arrivée</th><th class="py-2 pr-4">Départ</th>
+      <th class="py-2 pr-4 text-right">Prix / nuit</th><th class="py-2 pr-4 text-right">Nuitées (période)</th><th class="py-2 text-right">Coût (période)</th>
+    </tr></thead>
+    <tbody>
+      {% for sejour, nuitees, cout in page %}
+      <tr class="border-t border-base-200 dark:border-base-700">
+        <td class="py-2 pr-4">{{ sejour.visitor }}</td>
+        <td class="py-2 pr-4">{{ sejour.arrival_date|date:"d/m/Y" }}</td>
+        <td class="py-2 pr-4">{{ sejour.departure_date|date:"d/m/Y"|default:"—" }}</td>
+        <td class="py-2 pr-4 text-right">{% if sejour.price is not None %}{{ sejour.price|floatformat:"2g" }} €{% else %}—{% endif %}</td>
+        <td class="py-2 pr-4 text-right">{{ nuitees }}</td>
+        <td class="py-2 text-right">{{ cout|floatformat:"2g" }} €</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="py-4 text-base-500">Aucun séjour sur la période.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endcomponent %}
+
+  {% if page.has_other_pages %}
+  <div class="flex items-center gap-3 mt-4 text-sm">
+    {% if page.has_previous %}<a class="text-primary-600" href="?debut={{ debut|date:'Y-m-d' }}&fin={{ fin|date:'Y-m-d' }}&page={{ page.previous_page_number }}">← Précédent</a>{% endif %}
+    <span>Page {{ page.number }} / {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="text-primary-600" href="?debut={{ debut|date:'Y-m-d' }}&fin={{ fin|date:'Y-m-d' }}&page={{ page.next_page_number }}">Suivant →</a>{% endif %}
+  </div>
+  {% endif %}
+{% endblock %}

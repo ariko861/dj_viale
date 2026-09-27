@@ -1,0 +1,26 @@
+{% load unfold %}
+{# Palette catégorielle validée (dataviz, slots 1-3), clair et sombre. #}
+<style>
+  :root { --vm-series-1: #2a78d6; --vm-series-2: #eb6834; --vm-series-3: #1baf7a; --vm-surface: #ffffff; }
+  html.dark { --vm-series-1: #3987e5; --vm-series-2: #d95926; --vm-series-3: #199e70; --vm-surface: #101828; }
+</style>
+{% component "unfold/components/card.html" with title=chart_title|default:"Présences, arrivées et départs" %}
+  {% component "unfold/components/chart/bar.html" with data=chart_data options=chart_options height=280 %}{% endcomponent %}
+
+  <details class="mt-4 text-sm">
+    <summary class="cursor-pointer text-base-500">Voir les chiffres</summary>
+    <table class="w-full mt-2">
+      <thead><tr class="text-left text-base-500">
+        <th class="py-1 pr-4">Jour</th><th class="py-1 pr-4">Restent</th><th class="py-1 pr-4">Arrivent</th><th class="py-1 pr-4">Partent</th>
+      </tr></thead>
+      <tbody>
+        {% for jour, restent, arrivent, partent in jours %}
+        <tr class="border-t border-base-200 dark:border-base-700">
+          <td class="py-1 pr-4">{{ jour|date:"D d/m/Y" }}</td><td class="py-1 pr-4">{{ restent }}</td>
+          <td class="py-1 pr-4">{{ arrivent }}</td><td class="py-1 pr-4">{{ partent }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+{% endcomponent %}

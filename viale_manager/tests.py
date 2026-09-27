@@ -481,3 +481,53 @@ class FusionVisiteursTests(TestCase):
         resp = self.client.post(self.url, {'action': 'fusionner', '_selected_action': [a.pk, b.pk]})
         self.submit_confirmation(self.url, resp)
         self.assertEqual(Visitors.objects.count(), 1)
+
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class StatistiquesTests(TestCase):
+
+    def setUp(self):
+        self.r = _reservation()
+        self.v = Visitors.objects.create(nom='Dupont', prenom='Jean', confirmed=False)
+
+    def sejour(self, arrival, departure, **kwargs):
+        return Sejours.objects.create(**{
+            'reservation': self.r, 'visitor': self.v, 'arrival_date': arrival,
+            'departure_date': departure, 'price': 10, 'confirmed': True, **kwargs,
+        })
+
+    def test_nuits_decoupees_sur_la_periode(self):
+        from viale_manager.stats import statistiques
+
+        self.sejour(date(2025, 12, 28), date(2026, 1, 3))    # 4 nuits en 2025, 2 en 2026
+        self.sejour(date(2026, 3, 1), None)                  # ouvert : jusqu'au 10/03 (« aujourd'hui »)
+        self.sejour(date(2026, 2, 1), date(2026, 2, 5), confirmed=False)
+        self.sejour(date(2026, 2, 1), date(2026, 2, 5), remove_from_stats=True)
+        self.sejour(date(2025, 12, 20), date(2026, 1, 1))    # part le 1er : aucune nuit en 2026
+
+        lignes, totaux = statistiques(date(2026, 1, 1), date(2026, 12, 31), today=date(2026, 3, 10))
+        self.assertEqual([n for _, n, _ in lignes], [2, 9])
+        self.assertEqual((totaux['nuitees'], totaux['revenus'], totaux['sejours'], totaux['visiteurs']), (11, 110, 2, 1))
+
+    def test_presences_par_jour(self):
+        from viale_manager.stats import presences
+
+        d = date(2026, 5, 10)
+        self.sejour(d, d + timedelta(days=2))
+        self.sejour(d - timedelta(days=1), d + timedelta(days=1), confirmed=False)
+        self.sejour(d - timedelta(days=5), None)
+
+        jours = presences(d, d + timedelta(days=2))
+        self.assertEqual([j[1:] for j in jours], [(2, 1, 0), (2, 0, 1), (1, 0, 1)])
+
+    def test_pages(self):
+        self.client.force_login(User.objects.create_superuser(username='admin', email='a@example.com', password='x'))
+        self.sejour(date.today(), date.today() + timedelta(days=2))
+        for name in ('statistiques', 'presences'):
+            resp = self.client.get(reverse(f'viale_manager:viale_manager_{name}'), {'debut': 'nimp'})
+            self.assertEqual(resp.status_code, 200)
+        resp = self.client.get(reverse('viale_manager:viale_manager_sejours_changelist'))
+        self.assertContains(resp, 'data-type="bar"')

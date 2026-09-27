@@ -13,6 +13,7 @@ class VialeAdminSite(UnfoldAdminSite):
         from viale_manager.views.calendrier import (
             CalendrierView, CalendrierResourcesView, CalendrierEventsView
         )
+        from viale_manager.views.statistiques import PresencesView, StatistiquesView
         from viale_manager.views.reservation_admin import (
             reservation_create_link, reservation_toggle_link_sent, reservation_delete,
             reservation_send_link,
@@ -32,6 +33,16 @@ class VialeAdminSite(UnfoldAdminSite):
                 'calendrier/events/',
                 self.admin_view(CalendrierEventsView.as_view()),
                 name='viale_manager_calendrier_events',
+            ),
+            path(
+                'statistiques/',
+                self.admin_view(StatistiquesView.as_view(admin_site=self)),
+                name='viale_manager_statistiques',
+            ),
+            path(
+                'presences/',
+                self.admin_view(PresencesView.as_view(admin_site=self)),
+                name='viale_manager_presences',
             ),
             path(
                 'reservations/create-link/',

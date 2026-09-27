@@ -2,5 +2,6 @@
 
 {% block content %}
   {% include "viale_manager/admin/widgets/reservations_widget.html" %}
+  <div class="mb-8">{% include "viale_manager/admin/widgets/presences_chart.html" with chart_title="Présences des 7 prochains jours" %}</div>
   {{ block.super }}
 {% endblock %}

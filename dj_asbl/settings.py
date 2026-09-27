@@ -171,6 +171,22 @@ UNFOLD_VIALE = {
                 ],
             },
             {
+                'title': 'Statistiques',
+                'separator': True,
+                'items': [
+                    {
+                        'title': 'Présences',
+                        'icon': 'bar_chart',
+                        'link': reverse_lazy('viale_manager:viale_manager_presences'),
+                    },
+                    {
+                        'title': 'Statistiques',
+                        'icon': 'query_stats',
+                        'link': reverse_lazy('viale_manager:viale_manager_statistiques'),
+                    },
+                ],
+            },
+            {
                 'title': 'Séjours',
                 'separator': True,
                 'items': [

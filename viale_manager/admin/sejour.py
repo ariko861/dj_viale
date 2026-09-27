@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib import admin, messages
 from django.shortcuts import redirect
@@ -16,6 +16,7 @@ from viale_manager.forms import (
     ReservationAddForm, SejourBreakDialogForm, SejourDatesDialogForm, SejourInlineForm, SejourInlineFormSet,
 )
 from viale_manager.models import Reservations, Sejours, Visitors
+from viale_manager.stats import presences, presences_chart
 from .site import viale_admin
 from .widgets import reservations_widget_context
 
@@ -114,7 +115,13 @@ class SejourAdmin(ModelAdmin):
         return qs
 
     def changelist_view(self, request, extra_context=None):
-        extra_context = {**(extra_context or {}), **reservations_widget_context(request)}
+        today = date.today()
+        jours = presences(today, today + timedelta(days=6))
+        chart_data, chart_options = presences_chart(jours)
+        extra_context = {
+            **(extra_context or {}), **reservations_widget_context(request),
+            'jours': jours, 'chart_data': chart_data, 'chart_options': chart_options,
+        }
         return super().changelist_view(request, extra_context=extra_context)
 
     @admin.display(description='', ordering='reservation_id')
