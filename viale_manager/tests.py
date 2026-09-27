@@ -192,3 +192,21 @@ class ArrivalMailsTests(TestCase):
             ['contact@example.com', 'vise@example.com'],
         )
         self.assertTrue(all(m.subject == 'Rappel' for m in mail.outbox))
+
+
+class VisitorSearchTests(TestCase):
+
+    def test_recherche_partielle_reservee_au_staff(self):
+        from django.contrib.auth.models import Permission
+
+        r = _reservation()
+        Visitors.objects.create(nom='Dupont', prenom='Jean', email='jean.dupont@example.com', confirmed=False)
+        url = reverse('reservation_visitor_search', args=[r.link_token])
+
+        self.assertEqual(self.client.get(url, {'q': 'dupont'}).json(), [])
+        self.assertEqual(len(self.client.get(url, {'q': 'jean.dupont@example.com'}).json()), 1)
+
+        staff = User.objects.create_user(username='accueil', password='x', is_staff=True)
+        staff.user_permissions.add(Permission.objects.get(codename='view_visitors'))
+        self.client.force_login(staff)
+        self.assertEqual(len(self.client.get(url, {'q': 'dupont'}).json()), 1)

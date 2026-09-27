@@ -294,7 +294,7 @@ def visitor_search(request, token):
     if len(q) < 3:
         return JsonResponse([], safe=False)
 
-    if request.user.is_authenticated and request.user.has_perm('viale_manager.view_visitor'):
+    if request.user.is_authenticated and request.user.has_perm('viale_manager.view_visitors'):
         lookup = Q(email__icontains=q)
     else:
         lookup = Q(email__iexact=q)
