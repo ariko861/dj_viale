@@ -1,8 +1,12 @@
 {% extends "viale_manager/compte/base.html" %}
-{% block title %}{% if existe %}Nouveau mot de passe{% else %}Activer mon compte{% endif %}{% endblock %}
-{% block heading %}{% if existe %}Nouveau mot de passe{% else %}Activer mon compte{% endif %}{% endblock %}
+{% block title %}Mon compte{% endblock %}
+{% block heading %}{% if validlink and not form.visitor %}Nouveau mot de passe{% else %}Activer mon compte{% endif %}{% endblock %}
 {% block content %}
-<p class="text-sm text-gray-600 mb-4">Compte : <strong>{{ email }}</strong></p>
+{% if not validlink or form.plus_de_fiche %}
+  <p>Ce lien a expiré, a déjà servi, ou ne correspond plus à aucune fiche disponible.</p>
+  <p class="mt-4"><a class="underline text-emerald-700" href="{% url 'compte_inscription' %}">Demander un nouveau lien</a></p>
+{% else %}
+<p class="text-sm text-gray-600 mb-4">Compte : <strong>{{ form.user.email }}</strong></p>
 <form method="post">{% csrf_token %}
   {% if form.visitor %}
     {% if form.visitor.is_hidden %}
@@ -17,8 +21,9 @@
       </fieldset>
     {% endif %}
   {% endif %}
-  {% with field=form.password1 %}{% include "viale_manager/compte/_field.html" %}{% endwith %}
-  {% with field=form.password2 %}{% include "viale_manager/compte/_field.html" %}{% endwith %}
+  {% with field=form.new_password1 %}{% include "viale_manager/compte/_field.html" %}{% endwith %}
+  {% with field=form.new_password2 %}{% include "viale_manager/compte/_field.html" %}{% endwith %}
   <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Enregistrer</button>
 </form>
+{% endif %}
 {% endblock %}

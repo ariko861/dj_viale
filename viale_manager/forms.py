@@ -1,6 +1,7 @@
 from django import forms
-from django.contrib.auth import password_validation
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
+from django.db import transaction
 from unfold.forms import BaseDialogForm
 from unfold.widgets import (
     UnfoldAdminEmailInputWidget,
@@ -215,45 +216,69 @@ class SejourBreakDialogForm(BaseDialogForm):
         return cleaned
 
 
-class InscriptionForm(forms.Form):
-    email = forms.EmailField(label='Email')
+class InscriptionForm(PasswordResetForm):
+    """Demande de lien : création de compte ou nouveau mot de passe.
 
-    def clean_email(self):
-        return self.cleaned_data['email'].strip().lower()
+    Reprend l'envoi de :class:`~django.contrib.auth.forms.PasswordResetForm` ;
+    seule change la sélection des comptes. Pour l'email d'un visiteur sans
+    compte, un compte inactif sans mot de passe est créé : il ne s'active
+    qu'au clic sur le lien, avec le mot de passe choisi à ce moment-là.
+    """
+
+    def get_users(self, email):
+        User = get_user_model()
+        email = email.strip().lower()
+        user = User.objects.filter(username=email).first()
+        if user is None:
+            if not Visitors.par_email(email).exists():
+                return []
+            user = User(username=email, email=email, is_active=False)
+            user.set_unusable_password()
+            user.save()
+            return [user]
+        if user.is_active:
+            return [user]
+        # Inactif avec un mot de passe : compte désactivé par l'accueil, pas une inscription en cours.
+        if user.has_usable_password():
+            return []
+        return [user] if Visitors.par_email(email).exists() else []
 
 
-class ActivationForm(forms.Form):
-    """Choix de la fiche (si plusieurs) et du mot de passe, après vérification de l'email."""
+class ActivationForm(SetPasswordForm):
+    """Mot de passe (formulaire Django) et, pour un nouveau compte, choix de la fiche."""
 
     visitor = forms.ModelChoiceField(
         queryset=Visitors.objects.none(), widget=forms.RadioSelect, empty_label=None,
         label='Quelle fiche est la vôtre ?',
     )
-    password1 = forms.CharField(label='Mot de passe', widget=forms.PasswordInput)
-    password2 = forms.CharField(label='Confirmation', widget=forms.PasswordInput)
+    field_order = ['visitor', 'new_password1', 'new_password2']
+    plus_de_fiche = False
 
-    def __init__(self, *args, fiches=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        if fiches is None:
-            # Compte existant : seul le mot de passe change.
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, *args, **kwargs)
+        self.fields['new_password1'].label = 'Mot de passe'
+        self.fields['new_password2'].label = 'Confirmation'
+        if Visitors.objects.filter(user=user).exists():
             del self.fields['visitor']
-        else:
-            self.fields['visitor'].queryset = fiches
-            if fiches.count() == 1:
-                self.fields['visitor'].initial = fiches.first()
-                self.fields['visitor'].widget = forms.HiddenInput()
+            return
+        fiches = Visitors.par_email(user.email).order_by('nom', 'prenom')
+        self.fields['visitor'].queryset = fiches
+        # Fiche prise entre-temps par un autre compte : plus rien à lier.
+        self.plus_de_fiche = not fiches.exists()
+        if fiches.count() == 1:
+            self.fields['visitor'].initial = fiches.first()
+            self.fields['visitor'].widget = forms.HiddenInput()
 
-    def clean(self):
-        cleaned = super().clean()
-        p1, p2 = cleaned.get('password1'), cleaned.get('password2')
-        if p1 and p2 and p1 != p2:
-            self.add_error('password2', "Les mots de passe ne correspondent pas.")
-        elif p1:
-            try:
-                password_validation.validate_password(p1)
-            except forms.ValidationError as e:
-                self.add_error('password1', e)
-        return cleaned
+    @transaction.atomic
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.is_active = True
+        user.save()
+        visitor = self.cleaned_data.get('visitor')
+        if visitor:
+            visitor.user = user
+            visitor.save(update_fields=['user', 'updated_at'])
+        return user
 
 
 class ConnexionForm(AuthenticationForm):

@@ -1,7 +1,8 @@
 <label class="block mb-4">
   <span class="text-sm text-gray-600">{{ field.label }}</span>
-  <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}" value="{{ field.value|default_if_none:'' }}"
-         {% if field.field.widget.input_type == 'password' %}autocomplete="new-password"{% endif %}
+  {# Un mot de passe n'est jamais réaffiché dans la page. #}
+  <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}"
+         {% if field.field.widget.input_type == 'password' %}autocomplete="new-password"{% else %}value="{{ field.value|default_if_none:'' }}"{% endif %}
          class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
   {% for e in field.errors %}<span class="block text-red-600 text-sm mt-1">{{ e }}</span>{% endfor %}
 </label>

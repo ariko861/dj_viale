@@ -16,8 +16,9 @@ urlpatterns = [
         name='reservation_visitor_search',
     ),
     path('compte/', compte.mon_compte, name='compte'),
-    path('compte/inscription/', compte.inscription, name='compte_inscription'),
-    path('compte/activer/<str:token>/', compte.activer, name='compte_activer'),
+    path('compte/inscription/', compte.InscriptionView.as_view(), name='compte_inscription'),
+    path('compte/inscription/envoyee/', compte.InscriptionEnvoyeeView.as_view(), name='compte_inscription_envoyee'),
+    path('compte/activer/<uidb64>/<token>/', compte.ActivationView.as_view(), name='compte_activer'),
     path('compte/connexion/', compte.ConnexionView.as_view(), name='compte_connexion'),
     path(
         'compte/deconnexion/',

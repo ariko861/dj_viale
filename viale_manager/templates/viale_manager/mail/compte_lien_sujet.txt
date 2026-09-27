@@ -1,0 +1,1 @@
+[Viale] {% if user.is_active %}Nouveau mot de passe{% else %}Votre compte{% endif %}

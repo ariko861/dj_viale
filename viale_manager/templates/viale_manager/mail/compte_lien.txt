@@ -1,0 +1,10 @@
+{% autoescape off %}Bonjour,
+
+{% if user.is_active %}Vous avez demandé à choisir un nouveau mot de passe pour votre compte à la Viale.{% else %}Vous avez demandé à créer un compte à la Viale, pour retrouver vos séjours.{% endif %}
+
+Pour continuer : {{ protocol }}://{{ domain }}{% url 'compte_activer' uidb64=uid token=token %}
+
+Ce lien est valable 3 jours et ne sert qu'une fois. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.
+
+La Viale
+{% endautoescape %}

@@ -107,13 +107,3 @@ def send_reservation_confirmed(request, reservation):
             reply_to=config.VIALE_EMAIL,
         )
 
-
-def send_compte_link(email, url, existe):
-    """Lien de création de compte (ou de nouveau mot de passe si ``existe``)."""
-    _send_html(
-        'Votre compte',
-        'viale_manager/mail/compte_lien.html',
-        {'url': url, 'existe': existe},
-        to=[email],
-        reply_to=config.VIALE_EMAIL,
-    )

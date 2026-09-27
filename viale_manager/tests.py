@@ -620,17 +620,29 @@ class CompteVisiteurTests(TestCase):
         import re
 
         mail.outbox.clear()
-        resp = self.client.post(reverse('compte_inscription'), {'email': email})
+        resp = self.client.post(reverse('compte_inscription'), {'email': email}, follow=True)
         self.assertTemplateUsed(resp, 'viale_manager/compte/inscription_envoyee.html')
         if not mail.outbox:
             return None
-        return re.search(r'http://testserver(/viale/compte/activer/[^/\s"]+/)', mail.outbox[0].body).group(1)
+        return re.search(r'http://testserver(/viale/compte/activer/[^/\s"]+/[^/\s"]+/)', mail.outbox[0].body).group(1)
 
-    def activer(self, lien, **data):
-        return self.client.post(lien, {'password1': 'Un-mot-de-passe-solide', 'password2': 'Un-mot-de-passe-solide', **data})
+    def activer(self, lien, password='Un-mot-de-passe-solide', **data):
+        page = self.client.get(lien, follow=True)
+        return self.client.post(page.request['PATH_INFO'], {'new_password1': password, 'new_password2': password, **data})
+
+    def assertLienInvalide(self, lien):
+        self.assertContains(self.client.get(lien, follow=True), 'Ce lien a expiré')
 
     def test_email_inconnu_meme_reponse_sans_mail(self):
         self.assertIsNone(self.demander_lien('inconnu@example.com'))
+
+    def test_compte_en_attente_inactif_sans_mot_de_passe(self):
+        from core.models import User
+
+        self.demander_lien('famille@example.com')
+        user = User.objects.get(username='famille@example.com')
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.has_usable_password())
 
     def test_creation_du_compte(self):
         lien = self.demander_lien('Famille@Example.com')
@@ -639,22 +651,21 @@ class CompteVisiteurTests(TestCase):
 
         self.jean.refresh_from_db()
         user = self.jean.user
-        self.assertEqual((user.username, user.is_staff), ('famille@example.com', False))
+        self.assertEqual((user.username, user.is_active, user.is_staff), ('famille@example.com', True, False))
         self.assertContains(self.client.get(reverse('compte')), 'Séjours en cours et à venir')
-        # Le lien ne sert qu'une fois.
-        self.assertEqual(self.client.get(lien).status_code, 400)
+        self.client.logout()
+        self.assertLienInvalide(lien)
 
     def test_email_secondaire(self):
         VisitorContacts.objects.create(visitor=self.jean, type='email', value='perso@example.com')
-        lien = self.demander_lien('perso@example.com')
-        self.activer(lien, visitor=self.jean.pk)
+        self.activer(self.demander_lien('perso@example.com'), visitor=self.jean.pk)
         self.jean.refresh_from_db()
         self.assertEqual(self.jean.user.username, 'perso@example.com')
 
     def test_email_partage_choix_de_la_fiche(self):
         lea = Visitors.objects.create(nom='Dupont', prenom='Léa', email='famille@example.com', confirmed=False)
         lien = self.demander_lien('famille@example.com')
-        self.assertContains(self.client.get(lien), 'Plusieurs personnes utilisent cet email')
+        self.assertContains(self.client.get(lien, follow=True), 'Plusieurs personnes utilisent cet email')
 
         self.activer(lien, visitor=lea.pk)
         lea.refresh_from_db()
@@ -669,22 +680,28 @@ class CompteVisiteurTests(TestCase):
         self.jean.save()
         self.assertIsNone(self.demander_lien('famille@example.com'))
 
+    def test_compte_desactive_ne_recoit_pas_de_lien(self):
+        from core.models import User
+
+        User.objects.create_user(username='famille@example.com', password='x', is_active=False)
+        self.assertIsNone(self.demander_lien('famille@example.com'))
+
     def test_mot_de_passe_oublie(self):
         self.activer(self.demander_lien('famille@example.com'), visitor=self.jean.pk)
         self.client.logout()
 
         lien = self.demander_lien('famille@example.com')
         self.assertIn('nouveau mot de passe', mail.outbox[0].body)
-        self.client.post(lien, {'password1': 'Autre-mot-de-passe-9', 'password2': 'Autre-mot-de-passe-9'})
-        self.assertEqual(self.client.get(lien).status_code, 400)
+        self.activer(lien, password='Autre-mot-de-passe-9')
         self.client.logout()
+        self.assertLienInvalide(lien)
 
         connexion = reverse('compte_connexion')
         resp = self.client.post(connexion, {'username': 'FAMILLE@example.com', 'password': 'Autre-mot-de-passe-9'})
         self.assertRedirects(resp, reverse('compte'))
 
     def test_lien_falsifie_et_admin_interdite(self):
-        self.assertEqual(self.client.get(reverse('compte_activer', args=['nimp'])).status_code, 400)
+        self.assertLienInvalide(reverse('compte_activer', args=['xx', 'nimp']))
         self.activer(self.demander_lien('famille@example.com'), visitor=self.jean.pk)
         resp = self.client.get(reverse('viale_manager:index'))
         self.assertEqual(resp.status_code, 302)

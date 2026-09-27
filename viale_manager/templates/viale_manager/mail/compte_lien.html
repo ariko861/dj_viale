@@ -1,9 +1,10 @@
+{% url 'compte_activer' uidb64=uid token=token as chemin %}
 <p>Bonjour,</p>
-{% if existe %}
+{% if user.is_active %}
 <p>Vous avez demandé à choisir un nouveau mot de passe pour votre compte à la Viale.</p>
 {% else %}
 <p>Vous avez demandé à créer un compte à la Viale, pour retrouver vos séjours.</p>
 {% endif %}
-<p><a href="{{ url }}">Continuer</a> : {{ url }}</p>
-<p>Ce lien est valable 3 jours. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
+<p><a href="{{ protocol }}://{{ domain }}{{ chemin }}">Continuer</a> : {{ protocol }}://{{ domain }}{{ chemin }}</p>
+<p>Ce lien est valable 3 jours et ne sert qu'une fois. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
 <p>La Viale</p>

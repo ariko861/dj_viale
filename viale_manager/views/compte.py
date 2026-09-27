@@ -1,78 +1,42 @@
-"""Comptes visiteurs : création réservée aux emails connus, vérifiée par un lien envoyé par email."""
+"""Comptes visiteurs, sur le parcours de réinitialisation de mot de passe de Django.
+
+Seules changent la sélection des comptes (emails de visiteurs, cf.
+:class:`~viale_manager.forms.InscriptionForm`) et la confirmation, qui active
+le compte et le lie à une fiche (cf. :class:`~viale_manager.forms.ActivationForm`).
+"""
 from datetime import date
 
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LoginView
-from django.core import signing
-from django.utils.crypto import constant_time_compare, salted_hmac
-from django.db import transaction
-from django.shortcuts import redirect, render
-from django.urls import reverse, reverse_lazy
+from django.shortcuts import render
+from django.urls import reverse_lazy
 
 from viale_manager.forms import ActivationForm, ConnexionForm, InscriptionForm
-from viale_manager.mailing import send_compte_link
-from viale_manager.models import Sejours, Visitors
-
-SALT = 'viale-compte'
-VALIDITE = 3 * 24 * 3600  # secondes
+from viale_manager.models import Sejours
 
 
-def _compte_existant(email):
-    return get_user_model().objects.filter(username=email, is_active=True).first()
+class InscriptionView(auth_views.PasswordResetView):
+    form_class = InscriptionForm
+    template_name = 'viale_manager/compte/inscription.html'
+    subject_template_name = 'viale_manager/mail/compte_lien_sujet.txt'
+    email_template_name = 'viale_manager/mail/compte_lien.txt'
+    html_email_template_name = 'viale_manager/mail/compte_lien.html'
+    success_url = reverse_lazy('compte_inscription_envoyee')
 
 
-def _empreinte(user):
-    """Change dès que le compte est créé ou son mot de passe modifié : le lien est à usage unique."""
-    return salted_hmac(SALT, user.password if user else '').hexdigest()[:16]
+class InscriptionEnvoyeeView(auth_views.PasswordResetDoneView):
+    template_name = 'viale_manager/compte/inscription_envoyee.html'
 
 
-def inscription(request):
-    """Demande de lien. La réponse est la même que l'email soit connu ou non."""
-    form = InscriptionForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        email = form.cleaned_data['email']
-        user = _compte_existant(email)
-        if user or Visitors.par_email(email).exists():
-            token = signing.dumps({'email': email, 'h': _empreinte(user)}, salt=SALT)
-            url = request.build_absolute_uri(reverse('compte_activer', args=[token]))
-            send_compte_link(email, url, existe=user is not None)
-        return render(request, 'viale_manager/compte/inscription_envoyee.html', {'email': email})
-    return render(request, 'viale_manager/compte/inscription.html', {'form': form})
+class ActivationView(auth_views.PasswordResetConfirmView):
+    form_class = ActivationForm
+    template_name = 'viale_manager/compte/activer.html'
+    post_reset_login = True
+    post_reset_login_backend = 'django.contrib.auth.backends.ModelBackend'
+    success_url = reverse_lazy('compte')
 
 
-def activer(request, token):
-    """Lien reçu par email : choix de la fiche et du mot de passe (ou nouveau mot de passe)."""
-    try:
-        payload = signing.loads(token, salt=SALT, max_age=VALIDITE)
-    except signing.BadSignature:
-        return render(request, 'viale_manager/compte/lien_invalide.html', status=400)
-    email = payload['email']
-    user = _compte_existant(email)
-    if not constant_time_compare(payload.get('h', ''), _empreinte(user)):
-        return render(request, 'viale_manager/compte/lien_invalide.html', status=400)
-    fiches = None if user else Visitors.par_email(email).order_by('nom', 'prenom')
-    if fiches is not None and not fiches.exists():
-        return render(request, 'viale_manager/compte/lien_invalide.html', status=400)
-
-    form = ActivationForm(request.POST or None, fiches=fiches)
-    if request.method == 'POST' and form.is_valid():
-        with transaction.atomic():
-            if user is None:
-                user = get_user_model().objects.create_user(username=email, email=email)
-                visitor = form.cleaned_data['visitor']
-                visitor.user = user
-                visitor.save(update_fields=['user', 'updated_at'])
-            user.set_password(form.cleaned_data['password1'])
-            user.save()
-        login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-        return redirect('compte')
-    return render(request, 'viale_manager/compte/activer.html', {
-        'form': form, 'email': email, 'existe': user is not None,
-    })
-
-
-class ConnexionView(LoginView):
+class ConnexionView(auth_views.LoginView):
     template_name = 'viale_manager/compte/connexion.html'
     authentication_form = ConnexionForm
     next_page = reverse_lazy('compte')
