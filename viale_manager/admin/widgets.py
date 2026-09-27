@@ -63,25 +63,26 @@ def _post_button(url, csrf, icon, title, confirm_msg, hover='hover:text-primary-
     )
 
 
-def _actions_cell(r, public_url, csrf):
+def _actions_cell(r, public_url, csrf, peut):
     parts = [format_html(
         '<a href="{}" target="_blank" title="Ouvrir le formulaire" '
         'class="material-symbols-outlined text-base-400 hover:text-primary-600">open_in_new</a>',
         public_url,
     )]
-    if r.contact_email:
+    if r.contact_email and peut['change']:
         parts.append(_post_button(
             reverse('viale_manager:viale_manager_reservation_send_link', args=[r.id]), csrf,
             'send', 'Envoyer le lien par email',
             f'Envoyer le lien de réservation à {r.contact_email} ?',
         ))
-    parts.append(format_html(
-        '<a href="{}" title="Modifier les paramètres" '
-        'class="material-symbols-outlined text-base-400 hover:text-primary-600">edit</a>',
-        reverse('viale_manager:viale_manager_reservations_change', args=[r.id]),
-    ))
+    if peut['change']:
+        parts.append(format_html(
+            '<a href="{}" title="Modifier les paramètres" '
+            'class="material-symbols-outlined text-base-400 hover:text-primary-600">edit</a>',
+            reverse('viale_manager:viale_manager_reservations_change', args=[r.id]),
+        ))
     # Une réservation confirmée ou dont le lien est parti ne se supprime pas d'ici.
-    if not r.confirmed_at and not r.link_sent:
+    if not r.confirmed_at and not r.link_sent and peut['delete']:
         parts.append(_post_button(
             reverse('viale_manager:viale_manager_reservation_delete', args=[r.id]), csrf,
             'delete', 'Supprimer', 'Supprimer cette réservation et ses séjours ?',
@@ -98,8 +99,13 @@ def reservations_widget_context(request, limit=8):
 
     Construit un dict ``table`` consommé par le composant Unfold
     ``unfold/components/table.html``. Réutilisé dans l'index admin et
-    au-dessus de la liste des séjours.
+    au-dessus de la liste des séjours. Vide sans la permission de voir les
+    réservations (les liens copiables donnent accès aux formulaires) ; les
+    boutons suivent les permissions d'ajout, de modification et de suppression.
     """
+    peut = {a: request.user.has_perm(f'viale_manager.{a}_reservations') for a in ('view', 'add', 'change', 'delete')}
+    if not peut['view']:
+        return {}
     csrf = get_token(request)
     rows = []
     for r in Reservations.objects.order_by('-id')[:limit]:
@@ -108,10 +114,10 @@ def reservations_widget_context(request, limit=8):
         rows.append([
             _id_cell(r.id, public_url),
             r.remarques_accueil or '—',
-            _toggle_cell(toggle_url, csrf, r.link_sent),
+            _toggle_cell(toggle_url, csrf, r.link_sent) if peut['change'] else _check_cross(r.link_sent),
             _statut_label(r),
             _check_cross(r.groupe),
-            _actions_cell(r, public_url, csrf),
+            _actions_cell(r, public_url, csrf, peut),
         ])
 
     return {
@@ -123,5 +129,6 @@ def reservations_widget_context(request, limit=8):
             'create_url': reverse('viale_manager:viale_manager_reservation_create_link'),
             'add_url': reverse('viale_manager:viale_manager_reservations_add'),
             'create_form': ReservationLinkForm(initial={'max_days_change': 2, 'max_visitors': 10}),
+            'peut_ajouter': peut['add'],
         }
     }

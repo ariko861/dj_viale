@@ -156,3 +156,81 @@ class AnneeTests(TestCase):
         resp = self.client.get('/admin/core/documentreunion/?annee=2026')
         self.assertContains(resp, 'budget.pdf')
         self.assertNotContains(resp, 'comptes.pdf')
+
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class AccesTests(TestCase):
+
+    def setUp(self):
+        import tempfile
+        from datetime import datetime
+
+        from core.models import DocumentReunion, Organe, Reunion
+
+        media = tempfile.TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        self.enterContext(override_settings(MEDIA_ROOT=media.name))
+
+        organe = Organe.objects.create(code='CA', nom="Conseil d'administration")
+        self.reunion = Reunion.objects.create(organe=organe, debut=datetime(2025, 3, 10, 18))
+        from django.core.files.base import ContentFile
+        self.doc = DocumentReunion.objects.create(
+            reunion=self.reunion, nom='pv.pdf', fichier=ContentFile(b'pv', name='pv.pdf'),
+        )
+        self.staff = User.objects.create_user(username='accueil', password='x', is_staff=True)
+
+    def donner(self, *codenames):
+        from django.contrib.auth.models import Permission
+
+        self.staff.user_permissions.add(*Permission.objects.filter(codename__in=codenames))
+
+    def test_ical_et_document_genere(self):
+        urls = [f'/reunions/{self.reunion.pk}/ical/', f'/reunions/{self.reunion.pk}/documents/1/']
+        for url in urls:
+            self.assertRedirects(self.client.get(url), f'/admin/login/?next={url}', fetch_redirect_response=False)
+        self.client.force_login(self.staff)
+        for url in urls:
+            self.assertEqual(self.client.get(url).status_code, 403)
+        self.donner('view_reunion')
+        self.assertEqual(self.client.get(urls[0]).status_code, 200)
+        self.assertEqual(self.client.get(urls[1]).status_code, 404)  # pas de modèle : la vue est atteinte
+
+    def test_media_selon_le_dossier(self):
+        url = '/media/' + self.doc.fichier.name
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.donner('view_documentreunion')
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_media_dossier_inconnu_reserve_aux_superusers(self):
+        import os
+
+        from django.conf import settings
+
+        os.makedirs(os.path.join(settings.MEDIA_ROOT, 'autre'))
+        with open(os.path.join(settings.MEDIA_ROOT, 'autre', 'x.txt'), 'w') as f:
+            f.write('x')
+        self.donner('view_documentreunion', 'view_modeledocument', 'view_procuration')
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get('/media/autre/x.txt').status_code, 403)
+        self.client.force_login(User.objects.create_superuser(username='admin', password='x'))
+        self.assertEqual(self.client.get('/media/autre/x.txt').status_code, 200)
+
+    def test_document_non_public_refuse_aux_comptes_visiteurs(self):
+        url = f'/documents/{self.doc.token}/'
+        self.client.force_login(User.objects.create_user(username='visiteur@example.com'))
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_envoyer_email_demande_la_modification(self):
+        url = f'/admin/core/reunion/{self.reunion.pk}/email/'
+        self.donner('view_reunion')
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertNotContains(self.client.get(f'/admin/core/reunion/{self.reunion.pk}/change/'), 'Envoyer un email')
+        self.donner('change_reunion')
+        self.assertEqual(self.client.get(url).status_code, 200)

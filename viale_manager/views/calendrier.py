@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
@@ -18,7 +19,12 @@ def _get_sejours(start_str, end_str):
     )
 
 
-class CalendrierView(View):
+class _SejoursPermissionMixin(PermissionRequiredMixin):
+    permission_required = 'viale_manager.view_sejours'
+    raise_exception = True
+
+
+class CalendrierView(_SejoursPermissionMixin, View):
     admin_site = None
 
     def get(self, request):
@@ -29,7 +35,7 @@ class CalendrierView(View):
         return render(request, 'viale_manager/admin/calendrier.html', context)
 
 
-class CalendrierResourcesView(View):
+class CalendrierResourcesView(_SejoursPermissionMixin, View):
     def get(self, request):
         qs = _get_sejours(request.GET.get('start', ''), request.GET.get('end', ''))
         qs = qs.select_related(None).select_related('visitor')
@@ -37,7 +43,7 @@ class CalendrierResourcesView(View):
         return JsonResponse(resources, safe=False)
 
 
-class CalendrierEventsView(View):
+class CalendrierEventsView(_SejoursPermissionMixin, View):
     def get(self, request):
         qs = _get_sejours(request.GET.get('start', ''), request.GET.get('end', ''))
         events = []

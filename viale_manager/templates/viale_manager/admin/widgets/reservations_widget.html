@@ -4,6 +4,7 @@
 <div class="mb-8" x-data="{ openCreate: false, groupe: false }">
 
   {% capture as vm_widget_action silent %}
+    {% if reservation_widget.peut_ajouter %}
     <div class="flex gap-2">
       {% component "unfold/components/button.html" with variant="default" icon="person_add" href=reservation_widget.add_url %}
         Nouvelle réservation
@@ -12,12 +13,14 @@
         Création lien formulaire
       {% endcomponent %}
     </div>
+    {% endif %}
   {% endcapture %}
 
   {% component "unfold/components/card.html" with title="Liens de réservation" action=vm_widget_action %}
     {% component "unfold/components/table.html" with table=reservation_widget.table card_included=1 %}{% endcomponent %}
   {% endcomponent %}
 
+  {% if reservation_widget.peut_ajouter %}
   <!-- Modal : création d'un lien de réservation -->
   <div class="backdrop-blur-xs bg-base-900/20 fixed inset-0 z-60 dark:bg-base-900/80"
        x-cloak x-show="openCreate" x-transition.opacity
@@ -69,6 +72,7 @@
       </form>
     </div>
   </div>
+  {% endif %}
 </div>
 
 <script>

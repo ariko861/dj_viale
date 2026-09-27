@@ -2,6 +2,8 @@ import json
 from datetime import date
 
 from django.contrib import messages
+from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -21,10 +23,12 @@ def _age(naissance, jour):
     return jour.year - naissance.year - ((jour.month, jour.day) < (naissance.month, naissance.day))
 
 
-class MaisonneesView(View):
+class MaisonneesView(PermissionRequiredMixin, View):
     """Tableau des maisonnées : une colonne « à placer » puis une par maison du planning."""
 
     admin_site = None
+    permission_required = 'viale_manager.view_maisonneesplanning'
+    raise_exception = True
 
     def get(self, request, pk=None):
         a_venir = MaisonneesPlanning.objects.filter(end__gte=date.today()).order_by('end')
@@ -67,6 +71,7 @@ def _maisons_postees(request):
 
 
 @require_POST
+@permission_required('viale_manager.add_maisonneesplanning', raise_exception=True)
 def maisonnees_create(request):
     try:
         begin = date.fromisoformat(request.POST.get('begin', ''))
@@ -83,6 +88,7 @@ def maisonnees_create(request):
 
 
 @require_POST
+@permission_required('viale_manager.change_maisonneesplanning', raise_exception=True)
 def maisonnees_houses(request, pk):
     planning = get_object_or_404(MaisonneesPlanning, pk=pk)
     planning.set_houses(_maisons_postees(request))
@@ -91,6 +97,7 @@ def maisonnees_houses(request, pk):
 
 
 @require_POST
+@permission_required('viale_manager.change_maisonneesplanning', raise_exception=True)
 def maisonnees_reset(request, pk):
     planning = get_object_or_404(MaisonneesPlanning, pk=pk)
     planning.reset()
@@ -99,6 +106,7 @@ def maisonnees_reset(request, pk):
 
 
 @require_POST
+@permission_required('viale_manager.change_assignationsmaisonnees', raise_exception=True)
 def maisonnees_assign(request, pk):
     """Déplace une personne (appel JSON du glisser-déposer). ``house`` nul = « à placer »."""
     planning = get_object_or_404(MaisonneesPlanning, pk=pk)

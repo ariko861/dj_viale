@@ -114,3 +114,4 @@ class Sejours(models.Model):
         db_table = '"viale_manager"."sejours"'
 
         verbose_name = "séjour"
+        permissions = [('view_statistiques', 'Peut voir les statistiques (nuitées et revenus)')]

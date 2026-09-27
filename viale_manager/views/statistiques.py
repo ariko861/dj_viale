@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.paginator import Paginator
 from django.shortcuts import render
 from django.views import View
@@ -21,8 +22,11 @@ class _AdminPageView(View):
         return render(request, template, {**self.admin_site.each_context(request), **context})
 
 
-class StatistiquesView(_AdminPageView):
+class StatistiquesView(PermissionRequiredMixin, _AdminPageView):
     """Nuitées et revenus sur une période (par défaut l'année en cours)."""
+
+    permission_required = 'viale_manager.view_statistiques'
+    raise_exception = True
 
     def get(self, request):
         today = date.today()
@@ -38,8 +42,11 @@ class StatistiquesView(_AdminPageView):
         )
 
 
-class PresencesView(_AdminPageView):
+class PresencesView(PermissionRequiredMixin, _AdminPageView):
     """Présences, arrivées et départs par jour (par défaut les 7 prochains jours)."""
+
+    permission_required = 'viale_manager.view_sejours'
+    raise_exception = True
 
     def get(self, request):
         today = date.today()

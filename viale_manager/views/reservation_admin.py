@@ -1,6 +1,7 @@
 import uuid
 
 from django.contrib import messages
+from django.contrib.auth.decorators import permission_required
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
@@ -16,6 +17,7 @@ def _back(request):
 
 
 @require_POST
+@permission_required('viale_manager.add_reservations', raise_exception=True)
 def reservation_create_link(request):
     """Crée une nouvelle réservation avec un token, prête à être partagée."""
     form = ReservationLinkForm(request.POST)
@@ -39,6 +41,7 @@ def reservation_create_link(request):
 
 
 @require_POST
+@permission_required('viale_manager.change_reservations', raise_exception=True)
 def reservation_toggle_link_sent(request, pk):
     reservation = get_object_or_404(Reservations, pk=pk)
     reservation.link_sent = not reservation.link_sent
@@ -48,6 +51,7 @@ def reservation_toggle_link_sent(request, pk):
 
 
 @require_POST
+@permission_required('viale_manager.change_reservations', raise_exception=True)
 def reservation_send_link(request, pk):
     """Envoie le lien à la personne de contact et ré-autorise l'édition."""
     reservation = get_object_or_404(Reservations, pk=pk)
@@ -69,6 +73,7 @@ def reservation_send_link(request, pk):
 
 
 @require_POST
+@permission_required('viale_manager.delete_reservations', raise_exception=True)
 def reservation_delete(request, pk):
     reservation = get_object_or_404(Reservations, pk=pk)
     with transaction.atomic():

@@ -3,6 +3,7 @@ import zipfile
 
 from constance import config
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.core.mail import EmailMessage
 from django.db.models import Count
 from django.http import HttpResponse
@@ -184,7 +185,7 @@ class ReunionAdmin(ModelAdmin):
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
 
-    @action(description='Envoyer un email', url_path='email')
+    @action(description='Envoyer un email', url_path='email', permissions=['change'])
     def envoyer_email(self, request, object_id):
         return redirect(reverse('admin:core_reunion_email', args=[object_id]))
 
@@ -193,6 +194,8 @@ class ReunionAdmin(ModelAdmin):
             Reunion.objects.select_related('organe', 'adresse'),
             pk=pk,
         )
+        if not self.has_change_permission(request, reunion):
+            raise PermissionDenied
 
         if request.method == 'POST':
             form = EnvoyerEmailForm(request.POST, reunion=reunion, request=request)

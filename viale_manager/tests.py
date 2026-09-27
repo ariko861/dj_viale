@@ -628,6 +628,91 @@ class StatistiquesTests(TestCase):
         self.assertContains(resp, 'data-type="bar"')
 
 
+    def test_permission_statistiques(self):
+        from django.contrib.auth.models import Permission
+
+        user = User.objects.create_user(username='accueil', password='x', is_staff=True)
+        self.client.force_login(user)
+        url = reverse('viale_manager:viale_manager_statistiques')
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertNotContains(self.client.get(reverse('viale_manager:index')), f'href="{url}"')
+
+        user.user_permissions.add(Permission.objects.get(codename='view_statistiques'))
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class PagesAdminPermissionsTests(TestCase):
+    """Les vues maison de l'admin Viale demandent la permission du modèle, pas seulement ``is_staff``."""
+
+    def setUp(self):
+        from viale_manager.models import MaisonneesPlanning
+
+        self.r = _reservation()
+        self.planning = MaisonneesPlanning.objects.create(begin=date(2026, 7, 1), end=date(2026, 7, 31))
+        self.staff = User.objects.create_user(username='accueil', password='x', is_staff=True)
+        self.client.force_login(self.staff)
+
+    def test_refus_sans_permission_puis_acces(self):
+        from django.contrib.auth.models import Permission
+
+        get = lambda name, *args: self.client.get(reverse(f'viale_manager:viale_manager_{name}', args=args))
+        post = lambda name, *args: self.client.post(reverse(f'viale_manager:viale_manager_{name}', args=args))
+        cas = [
+            ('view_sejours', lambda: get('calendrier')),
+            ('view_sejours', lambda: get('calendrier_events')),
+            ('view_sejours', lambda: get('calendrier_resources')),
+            ('view_sejours', lambda: get('presences')),
+            ('view_maisonneesplanning', lambda: get('maisonnees', self.planning.pk)),
+            ('add_maisonneesplanning', lambda: post('maisonnees_create')),
+            ('change_maisonneesplanning', lambda: post('maisonnees_houses', self.planning.pk)),
+            ('change_maisonneesplanning', lambda: post('maisonnees_reset', self.planning.pk)),
+            ('change_assignationsmaisonnees', lambda: post('maisonnees_assign', self.planning.pk)),
+            ('add_reservations', lambda: post('reservation_create_link')),
+            ('change_reservations', lambda: post('reservation_toggle_link_sent', self.r.pk)),
+            ('change_reservations', lambda: post('reservation_send_link', self.r.pk)),
+            ('delete_reservations', lambda: post('reservation_delete', self.r.pk)),
+        ]
+        for codename, requete in cas:
+            with self.subTest(codename=codename):
+                self.assertEqual(requete().status_code, 403)
+        self.assertTrue(Reservations.objects.filter(pk=self.r.pk).exists())
+
+        self.staff.user_permissions.add(*Permission.objects.filter(codename__in={c for c, _ in cas}))
+        for codename, requete in cas:
+            with self.subTest(codename=codename):
+                self.assertNotEqual(requete().status_code, 403)
+        self.assertFalse(Reservations.objects.filter(pk=self.r.pk).exists())
+
+    def test_widget_reservations_selon_les_permissions(self):
+        from django.contrib.auth.models import Permission
+
+        def boutons():
+            html = self.client.get(reverse('viale_manager:index')).content.decode()
+            urls = {
+                'liste': 'Liens de réservation',
+                'creer': reverse('viale_manager:viale_manager_reservation_create_link'),
+                'basculer': reverse('viale_manager:viale_manager_reservation_toggle_link_sent', args=[self.r.pk]),
+                'supprimer': reverse('viale_manager:viale_manager_reservation_delete', args=[self.r.pk]),
+            }
+            return {nom for nom, url in urls.items() if url in html}
+
+        self.assertEqual(boutons(), set())
+        self.staff.user_permissions.add(Permission.objects.get(codename='view_reservations'))
+        self.assertEqual(boutons(), {'liste'})
+        self.staff.user_permissions.add(*Permission.objects.filter(
+            codename__in=['add_reservations', 'change_reservations', 'delete_reservations'],
+        ))
+        self.assertEqual(boutons(), {'liste', 'creer', 'basculer', 'supprimer'})
+
+    def test_menu_masque_sans_permission(self):
+        resp = self.client.get(reverse('viale_manager:index'))
+        for name in ('calendrier', 'presences', 'maisonnees_index', 'statistiques'):
+            self.assertNotContains(resp, f'href="{reverse(f"viale_manager:viale_manager_{name}")}"')
+
+
 @override_settings(STORAGES={
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},

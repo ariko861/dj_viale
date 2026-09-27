@@ -185,6 +185,7 @@ UNFOLD_VIALE = {
                         'title': 'Calendrier',
                         'icon': 'calendar_month',
                         'link': reverse_lazy('viale_manager:viale_manager_calendrier'),
+                        'permission': lambda request: request.user.has_perm('viale_manager.view_sejours'),
                     },
                 ],
             },
@@ -196,11 +197,13 @@ UNFOLD_VIALE = {
                         'title': 'Présences',
                         'icon': 'bar_chart',
                         'link': reverse_lazy('viale_manager:viale_manager_presences'),
+                        'permission': lambda request: request.user.has_perm('viale_manager.view_sejours'),
                     },
                     {
                         'title': 'Statistiques',
                         'icon': 'query_stats',
                         'link': reverse_lazy('viale_manager:viale_manager_statistiques'),
+                        'permission': lambda request: request.user.has_perm('viale_manager.view_statistiques'),
                     },
                 ],
             },
@@ -222,6 +225,7 @@ UNFOLD_VIALE = {
                         'title': 'Maisonnées',
                         'icon': 'diversity_3',
                         'link': reverse_lazy('viale_manager:viale_manager_maisonnees_index'),
+                        'permission': lambda request: request.user.has_perm('viale_manager.view_maisonneesplanning'),
                     },
                 ],
             },
@@ -320,6 +324,7 @@ TEMPLATES = [
 AUTH_USER_MODEL = 'core.User'
 
 # Redirection par défaut après connexion (et de hijack sans page de destination).
+LOGIN_URL = 'admin:login'
 LOGIN_REDIRECT_URL = 'admin:index'
 
 WSGI_APPLICATION = 'dj_asbl.wsgi.application'
