@@ -322,6 +322,7 @@ CONSTANCE_CONFIG = {
     'REPLY_TO_EMAIL': ('', "Adresse email de réponse par défaut (reply-to) pour les envois depuis l'admin."),
     'SECRETAIRE_ID': (0, "Membre secrétaire de l'ASBL (disponible dans les modèles de documents)", 'membre_select'),
     'PRESIDENT_ID': (0, "Membre président de l'ASBL (disponible dans les modèles de documents)", 'membre_select'),
+    'VIALE_EMAIL': ('', "Adresse de la Viale : reçoit les réservations confirmées, sert de reply-to pour les mails aux visiteurs."),
 }
 
 # Email

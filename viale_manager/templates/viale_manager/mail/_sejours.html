@@ -1,0 +1,10 @@
+<ul>
+{% for s in sejours %}
+  <li>
+    <strong>{{ s.visitor.prenom }} {{ s.visitor.nom }}</strong><br>
+    Arrivée : {{ s.arrival_date|date:"l j F Y" }} — Départ : {{ s.departure_date|date:"l j F Y"|default:"indéterminé" }}<br>
+    {% if s.visitor.date_de_naissance %}Date de naissance : {{ s.visitor.date_de_naissance|date:"j/m/Y" }}<br>{% endif %}
+    Prix de la nuit : {{ s.price|default_if_none:"—" }} €
+  </li>
+{% endfor %}
+</ul>

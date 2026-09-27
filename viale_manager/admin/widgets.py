@@ -1,7 +1,7 @@
 from django.middleware.csrf import get_token
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import escapejs, format_html
 from django.utils.safestring import mark_safe
 from unfold.widgets import UnfoldBooleanSwitchWidget
 
@@ -50,20 +50,44 @@ def _check_cross(value):
     return mark_safe('<span class="material-symbols-outlined text-red-500">close</span>')
 
 
-def _actions_cell(public_url, edit_url, delete_url, csrf):
+def _post_button(url, csrf, icon, title, confirm_msg, hover='hover:text-primary-600'):
     return format_html(
-        '<div class="flex items-center gap-1 justify-end">'
-        '<a href="{}" target="_blank" title="Ouvrir le formulaire" '
-        'class="material-symbols-outlined text-base-400 hover:text-primary-600">open_in_new</a>'
-        '<a href="{}" title="Modifier les paramètres" '
-        'class="material-symbols-outlined text-base-400 hover:text-primary-600">edit</a>'
-        '<form method="post" action="{}" class="inline" '
-        'onsubmit="return confirm(\'Supprimer cette réservation et ses séjours ?\');">'
+        '<form method="post" action="{}" class="inline" onsubmit="return confirm(\'{}\');">'
         '<input type="hidden" name="csrfmiddlewaretoken" value="{}">'
-        '<button type="submit" title="Supprimer" '
-        'class="material-symbols-outlined text-base-400 hover:text-red-500 cursor-pointer">delete</button>'
-        '</form></div>',
-        public_url, edit_url, delete_url, csrf,
+        '<button type="submit" title="{}" '
+        'class="material-symbols-outlined text-base-400 {} cursor-pointer">{}</button>'
+        '</form>',
+        url, escapejs(confirm_msg), csrf, title, hover, icon,
+    )
+
+
+def _actions_cell(r, public_url, csrf):
+    parts = [format_html(
+        '<a href="{}" target="_blank" title="Ouvrir le formulaire" '
+        'class="material-symbols-outlined text-base-400 hover:text-primary-600">open_in_new</a>',
+        public_url,
+    )]
+    if r.contact_email:
+        parts.append(_post_button(
+            reverse('viale_manager:viale_manager_reservation_send_link', args=[r.id]), csrf,
+            'send', 'Envoyer le lien par email',
+            f'Envoyer le lien de réservation à {r.contact_email} ?',
+        ))
+    parts.append(format_html(
+        '<a href="{}" title="Modifier les paramètres" '
+        'class="material-symbols-outlined text-base-400 hover:text-primary-600">edit</a>',
+        reverse('viale_manager:viale_manager_reservations_change', args=[r.id]),
+    ))
+    # Une réservation confirmée ou dont le lien est parti ne se supprime pas d'ici.
+    if not r.confirmed_at and not r.link_sent:
+        parts.append(_post_button(
+            reverse('viale_manager:viale_manager_reservation_delete', args=[r.id]), csrf,
+            'delete', 'Supprimer', 'Supprimer cette réservation et ses séjours ?',
+            hover='hover:text-red-500',
+        ))
+    return format_html(
+        '<div class="flex items-center gap-1 justify-end">{}</div>',
+        mark_safe(''.join(parts)),
     )
 
 
@@ -78,16 +102,14 @@ def reservations_widget_context(request, limit=8):
     rows = []
     for r in Reservations.objects.order_by('-id')[:limit]:
         public_url = request.build_absolute_uri(reverse('reservation_form', args=[r.link_token]))
-        edit_url = reverse('viale_manager:viale_manager_reservations_change', args=[r.id])
         toggle_url = reverse('viale_manager:viale_manager_reservation_toggle_link_sent', args=[r.id])
-        delete_url = reverse('viale_manager:viale_manager_reservation_delete', args=[r.id])
         rows.append([
             _id_cell(r.id, public_url),
             r.remarques_accueil or '—',
             _toggle_cell(toggle_url, csrf, r.link_sent),
             _bool_label(bool(r.confirmed_at), 'Confirmée', 'En attente'),
             _check_cross(r.groupe),
-            _actions_cell(public_url, edit_url, delete_url, csrf),
+            _actions_cell(r, public_url, csrf),
         ])
 
     return {

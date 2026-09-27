@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from viale_manager.forms import ReservationLinkForm
+from viale_manager.mailing import send_reservation_link
 from viale_manager.models import Reservations, Sejours
 
 
@@ -42,6 +43,25 @@ def reservation_toggle_link_sent(request, pk):
     reservation.link_sent = not reservation.link_sent
     reservation.updated_at = timezone.now()
     reservation.save(update_fields=['link_sent', 'updated_at'])
+    return _back(request)
+
+
+@require_POST
+def reservation_send_link(request, pk):
+    """Envoie le lien à la personne de contact et ré-autorise l'édition."""
+    reservation = get_object_or_404(Reservations, pk=pk)
+    if not reservation.contact_email:
+        messages.error(request, "Cette réservation n'a pas d'email de contact.")
+        return _back(request)
+    try:
+        send_reservation_link(request, reservation)
+    except Exception as e:
+        messages.error(request, f"Échec de l'envoi à {reservation.contact_email} : {e}")
+        return _back(request)
+    reservation.authorize_edition = True
+    reservation.link_sent = True
+    reservation.save(update_fields=['authorize_edition', 'link_sent', 'updated_at'])
+    messages.success(request, f"Lien envoyé à {reservation.contact_email}.")
     return _back(request)
 
 

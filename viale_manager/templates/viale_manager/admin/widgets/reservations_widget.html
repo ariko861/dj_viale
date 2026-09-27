@@ -1,7 +1,7 @@
 {% load unfold %}
 {% if reservation_widget %}
 <style>[x-cloak]{display:none!important;}</style>
-<div class="mb-8" x-data="{ openCreate: false }">
+<div class="mb-8" x-data="{ openCreate: false, groupe: false }">
 
   {% capture as vm_widget_action silent %}
     {% component "unfold/components/button.html" with variant="primary" icon="add_link" extra_attrs='type="button" x-on:click="openCreate = true"' %}
@@ -42,7 +42,7 @@
               </div>
             </div>
           {% else %}
-            <div class="mb-4">
+            <div class="mb-4"{% if field.name == 'nom_groupe' %} x-show="groupe"{% endif %}>
               <label class="block font-medium text-sm mb-1 text-base-700 dark:text-base-300">
                 {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
               </label>

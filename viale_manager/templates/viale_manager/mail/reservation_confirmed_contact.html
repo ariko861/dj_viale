@@ -1,0 +1,6 @@
+<h2>Réservation confirmée</h2>
+<p>Bonjour,</p>
+<p>Votre réservation à la Viale a bien été enregistrée. Les séjours des personnes suivantes sont confirmés :</p>
+{% include "viale_manager/mail/_sejours.html" %}
+<p><a href="{{ public_url }}">Voir ma réservation</a> : {{ public_url }}</p>
+<p>Merci,<br>La Viale</p>

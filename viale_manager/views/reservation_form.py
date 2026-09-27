@@ -1,15 +1,16 @@
 import json
 from datetime import date, datetime
 
-from django.contrib.auth.models import PermissionsMixin
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models import Q
-from django.http import Http404, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views import View
 
-from viale_manager.mailing import send_confirmation_auto_mails
+from viale_manager.mailing import send_confirmation_auto_mails, send_reservation_confirmed
 from viale_manager.models import Messages, Profiles, Reservations, Sejours, Visitors
 
 
@@ -23,32 +24,59 @@ def _parse_date(value):
         return None
 
 
+def _is_email(value):
+    try:
+        validate_email(value)
+    except ValidationError:
+        return False
+    return True
+
+
 class ReservationFormView(View):
-    """Formulaire public (wizard) accessible via le token de la réservation."""
+    """Formulaire public (wizard) accessible via le token de la réservation.
+
+    Tant que ``authorize_edition`` est vrai, le lien affiche le wizard. La
+    soumission confirme la réservation et verrouille le lien : il affiche
+    ensuite un récapitulatif, jusqu'à ce que l'accueil ré-autorise l'édition.
+    """
 
     def get_reservation(self, token):
         return get_object_or_404(Reservations, link_token=token)
 
     def get(self, request, token):
         reservation = self.get_reservation(token)
-        profiles = list(Profiles.objects.all().order_by('-is_default', 'name'))
-        sejours = (
+        sejours = list(
             Sejours.objects
             .filter(reservation=reservation)
             .select_related('visitor')
             .order_by('arrival_date', 'id')
         )
+        messages = Messages.objects.order_by('id')
+
+        if not reservation.authorize_edition:
+            return render(request, 'viale_manager/reservation_confirmed.html', {
+                'reservation': reservation,
+                'sejours': sejours,
+                'messages_confirmation': messages.filter(type=Messages.TypeMessage.CONFIRMATION),
+            })
+
+        profiles = list(Profiles.objects.all().order_by('-is_default', 'name'))
+        profile_par_prix = {}
+        for p in profiles:
+            profile_par_prix.setdefault(p.price, p.id)
 
         # Pré-remplissage si la réservation a déjà des séjours (ré-édition).
+        # Le séjour ne stocke que le prix : on retrouve le profil correspondant.
         sejours_initiaux = [
             {
+                'sejourId': s.id,
                 'visitorId': s.visitor_id,
                 'nom': s.visitor.nom,
                 'prenom': s.visitor.prenom,
                 'email': s.visitor.email or '',
                 'phone': s.visitor.phone or '',
                 'dob': s.visitor.date_de_naissance.isoformat() if s.visitor.date_de_naissance else '',
-                'price': s.price,
+                'profileId': profile_par_prix.get(s.price),
                 'arrival': s.arrival_date.isoformat() if s.arrival_date else '',
                 'departure': s.departure_date.isoformat() if s.departure_date else '',
             }
@@ -56,20 +84,19 @@ class ReservationFormView(View):
         ]
         dates = [s.arrival_date for s in sejours if s.arrival_date]
         departs = [s.departure_date for s in sejours if s.departure_date]
-
-        messages = Messages.objects.order_by('id')
+        group_profile_id = sejours_initiaux[0]['profileId'] if reservation.groupe and sejours_initiaux else None
 
         context = {
             'reservation': reservation,
             'is_groupe': reservation.groupe,
             'messages_link': messages.filter(type=Messages.TypeMessage.LINK),
-            'messages_confirmation': messages.filter(type=Messages.TypeMessage.CONFIRMATION),
-            'readonly': bool(reservation.confirmed_at) and not reservation.authorize_edition,
             'profiles': [
                 {'id': p.id, 'name': p.name, 'price': p.price, 'is_default': p.is_default}
                 for p in profiles
             ],
             'sejours_initiaux': sejours_initiaux,
+            'group_profile_id': group_profile_id,
+            'min_arrival': '' if sejours else date.today().isoformat(),
             'arrival_initial': min(dates).isoformat() if dates else '',
             'departure_initial': max(departs).isoformat() if departs else '',
             'max_visitors': reservation.max_visitors,
@@ -83,7 +110,7 @@ class ReservationFormView(View):
 
     def post(self, request, token):
         reservation = self.get_reservation(token)
-        if reservation.confirmed_at and not reservation.authorize_edition:
+        if not reservation.authorize_edition:
             return JsonResponse(
                 {'ok': False, 'errors': {'__all__': "Cette réservation ne peut plus être modifiée."}},
                 status=403,
@@ -94,6 +121,9 @@ class ReservationFormView(View):
         except (json.JSONDecodeError, ValueError):
             return JsonResponse({'ok': False, 'errors': {'__all__': "Données invalides."}}, status=400)
 
+        existing = {
+            s.id: s for s in Sejours.objects.filter(reservation=reservation).select_related('visitor')
+        }
         errors = {}
 
         arrival = _parse_date(payload.get('arrival'))
@@ -102,16 +132,27 @@ class ReservationFormView(View):
             errors['dates'] = "Les dates d'arrivée et de départ sont obligatoires."
         elif departure <= arrival:
             errors['dates'] = "La date de départ doit être après la date d'arrivée."
+        elif not existing and arrival < date.today():
+            # Seulement à la première saisie : une ré-édition peut porter sur un séjour commencé.
+            errors['dates'] = "La date d'arrivée ne peut pas être dans le passé."
 
         raw_sejours = payload.get('sejours') or []
         if not raw_sejours:
-            errors['sejours'] = "Ajoutez au moins un séjour."
+            errors['sejours'] = "Ajoutez au moins une personne."
         elif len(raw_sejours) > reservation.max_visitors:
-            errors['sejours'] = f"Maximum {reservation.max_visitors} séjour(s) autorisé(s)."
+            errors['sejours'] = f"Maximum {reservation.max_visitors} personne(s) autorisée(s)."
 
-        # En mode groupe, le formulaire est simplifié : nom/prénom (et email si
-        # exigé) par visiteur ; tous les séjours partagent les dates principales
-        # et un unique profil de prix choisi pour tout le groupe.
+        contact_email = (payload.get('contactEmail') or '').strip()
+        contact_phone = (payload.get('contactPhone') or '').strip()
+        if not contact_email or not _is_email(contact_email):
+            errors['contactEmail'] = "Un email de contact valide est obligatoire."
+        if not contact_phone:
+            errors['contactPhone'] = "Le téléphone de contact est obligatoire."
+        remarques = (payload.get('remarques') or '').strip()
+
+        # En mode groupe, le formulaire est simplifié : un prénom par personne,
+        # le nom du groupe servant de nom de famille ; tous les séjours partagent
+        # les dates principales et un unique profil de prix.
         is_groupe = reservation.groupe
         group_profile = None
         if is_groupe:
@@ -123,24 +164,33 @@ class ReservationFormView(View):
         cleaned = []
         for i, s in enumerate(raw_sejours):
             ligne = {}
-            visitor_id = s.get('visitorId')
-            nom = (s.get('nom') or '').strip()
+            sejour_id = s.get('sejourId') if s.get('sejourId') in existing else None
             prenom = (s.get('prenom') or '').strip()
-            email = (s.get('email') or '').strip()
-
-            if not visitor_id and (not nom or not prenom):
-                ligne['visitor'] = "Nom et prénom obligatoires."
-            if reservation.all_mails_required and not email:
-                ligne['email'] = "Email obligatoire."
 
             if is_groupe:
-                phone = ''
-                dob = None
-                profile = group_profile
-                s_arrival, s_departure = arrival, departure
+                if not prenom:
+                    ligne['visitor'] = "Prénom obligatoire."
+                cleaned.append({
+                    'sejour_id': sejour_id, 'visitor_id': None,
+                    'nom': reservation.nom_groupe or '', 'prenom': prenom,
+                    'email': '', 'phone': '', 'dob': None, 'profile': group_profile,
+                    'arrival': arrival, 'departure': departure,
+                })
             else:
+                visitor_id = s.get('visitorId')
+                nom = (s.get('nom') or '').strip()
+                email = (s.get('email') or '').strip()
                 phone = (s.get('phone') or '').strip()
                 dob = _parse_date(s.get('dob'))
+
+                if not visitor_id and (not nom or not prenom):
+                    ligne['visitor'] = "Nom et prénom obligatoires."
+                if reservation.all_mails_required and not email:
+                    ligne['email'] = "Email obligatoire."
+                elif email and not _is_email(email):
+                    ligne['email'] = "Email invalide."
+                if dob is None:
+                    ligne['dob'] = "Date de naissance obligatoire."
                 profile = Profiles.objects.filter(id=s.get('profileId')).first()
                 if profile is None:
                     ligne['profile'] = "Choisissez un profil de prix."
@@ -153,58 +203,51 @@ class ReservationFormView(View):
                     if abs((s_arrival - arrival).days) > max_delta or abs((s_departure - departure).days) > max_delta:
                         ligne['dates'] = f"Les dates ne peuvent pas varier de plus de {max_delta} jour(s)."
 
+                cleaned.append({
+                    'sejour_id': sejour_id, 'visitor_id': visitor_id,
+                    'nom': nom, 'prenom': prenom,
+                    'email': email, 'phone': phone, 'dob': dob, 'profile': profile,
+                    'arrival': s_arrival, 'departure': s_departure,
+                })
+
             if ligne:
                 errors[f'sejour_{i}'] = ligne
-            cleaned.append({
-                'visitor_id': visitor_id, 'nom': nom, 'prenom': prenom,
-                'email': email, 'phone': phone, 'dob': dob, 'profile': profile,
-                'arrival': s_arrival, 'departure': s_departure,
-            })
 
         if errors:
             return JsonResponse({'ok': False, 'errors': errors}, status=400)
 
-        contact_email = (payload.get('contactEmail') or '').strip()
-        if not contact_email and cleaned:
-            contact_email = cleaned[0]['email']
-        contact_phone = (payload.get('contactPhone') or '').strip()
-        if not contact_phone and cleaned:
-            contact_phone = cleaned[0]['phone']
-        remarques = (payload.get('remarques') or '').strip()
-
         was_confirmed = bool(reservation.confirmed_at)
         now = timezone.now()
         with transaction.atomic():
-            # Ré-soumission : on repart des séjours soumis.
-            Sejours.objects.filter(reservation=reservation).delete()
-
+            kept_ids = set()
             for c in cleaned:
-                if c['visitor_id']:
-                    visitor = Visitors.objects.filter(id=c['visitor_id']).first()
-                    if visitor is None:
-                        visitor = self._creer_visitor(c, now)
-                else:
-                    visitor = self._creer_visitor(c, now)
+                sejour = existing.get(c['sejour_id'])
+                visitor = self._get_visitor(c, sejour, is_groupe)
 
-                Sejours.objects.create(
-                    reservation=reservation,
-                    visitor=visitor,
-                    arrival_date=c['arrival'],
-                    departure_date=c['departure'],
-                    price=c['profile'].price if c['profile'] else None,
-                    confirmed=False,
-                    remove_from_stats=False,
-                )
+                if sejour is None:
+                    sejour = Sejours(reservation=reservation, remove_from_stats=False)
+                sejour.visitor = visitor
+                sejour.arrival_date = c['arrival']
+                sejour.departure_date = c['departure']
+                sejour.price = c['profile'].price
+                sejour.confirmed = True
+                sejour.save()
+                kept_ids.add(sejour.id)
+
+            # Personnes retirées du formulaire lors d'une ré-édition.
+            Sejours.objects.filter(reservation=reservation).exclude(id__in=kept_ids).delete()
 
             reservation.contact_email = contact_email
             reservation.contact_phone = contact_phone
             reservation.remarques_visiteur = remarques
             reservation.confirmed_at = now
-            reservation.updated_at = now
+            reservation.authorize_edition = False
             reservation.save(update_fields=[
-                'contact_email', 'contact_phone', 'remarques_visiteur', 'confirmed_at', 'updated_at',
+                'contact_email', 'contact_phone', 'remarques_visiteur',
+                'confirmed_at', 'authorize_edition', 'updated_at',
             ])
 
+        send_reservation_confirmed(request, reservation)
         # Emails automatiques « confirmation » : uniquement à la première confirmation.
         if not was_confirmed:
             recipients = {contact_email} | {c['email'] for c in cleaned}
@@ -213,13 +256,30 @@ class ReservationFormView(View):
         return JsonResponse({'ok': True})
 
     @staticmethod
-    def _creer_visitor(c, now):
-        return Visitors.objects.create(
-            nom=c['nom'], prenom=c['prenom'],
-            email=c['email'] or None, phone=c['phone'] or None,
-            date_de_naissance=c['dob'],
-            confirmed=False, created_at=now, updated_at=now,
-        )
+    def _get_visitor(c, sejour, is_groupe):
+        """Visiteur du séjour : existant (complété) ou nouvellement créé."""
+        if is_groupe:
+            # Les visiteurs d'un groupe sont propres à la réservation : on renomme.
+            if sejour is not None:
+                visitor = sejour.visitor
+                visitor.nom, visitor.prenom = c['nom'], c['prenom']
+                visitor.save(update_fields=['nom', 'prenom', 'updated_at'])
+                return visitor
+            return Visitors.objects.create(nom=c['nom'], prenom=c['prenom'], confirmed=False)
+
+        visitor = Visitors.objects.filter(id=c['visitor_id']).first() if c['visitor_id'] else None
+        if visitor is None:
+            return Visitors.objects.create(
+                nom=c['nom'], prenom=c['prenom'],
+                email=c['email'] or None, phone=c['phone'] or None,
+                date_de_naissance=c['dob'], confirmed=False,
+            )
+        if c['phone']:
+            visitor.phone = c['phone']
+        if c['dob']:
+            visitor.date_de_naissance = c['dob']
+        visitor.save(update_fields=['phone', 'date_de_naissance', 'updated_at'])
+        return visitor
 
 
 def visitor_search(request, token):

@@ -1,0 +1,7 @@
+<h2>Réservation confirmée</h2>
+<p>La réservation {{ reservation.id }}{% if reservation.nom_groupe %} ({{ reservation.nom_groupe }}){% endif %} a été confirmée.</p>
+<p>Contact : {{ reservation.contact_email|default:"—" }} — {{ reservation.contact_phone|default:"—" }}</p>
+{% if reservation.remarques_visiteur %}<p>Remarques du visiteur : {{ reservation.remarques_visiteur|linebreaksbr }}</p>{% endif %}
+<p>Séjours :</p>
+{% include "viale_manager/mail/_sejours.html" %}
+<p><a href="{{ admin_url }}">Accéder à la réservation</a> : {{ admin_url }}</p>

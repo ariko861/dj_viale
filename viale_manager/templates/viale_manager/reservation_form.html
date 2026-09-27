@@ -36,14 +36,9 @@
 
   <div class="lg:flex-1 lg:min-w-0 lg:max-w-2xl">
 
-  {% if readonly %}
-  <div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 mb-6">
-    Cette réservation a déjà été confirmée et ne peut plus être modifiée.
-  </div>
-  {% endif %}
 
   <!-- Indicateur d'étapes -->
-  <div class="flex items-center gap-2 mb-8" x-show="!done">
+  <div class="flex items-center gap-2 mb-8">
     <template x-for="(label, i) in stepLabels" :key="i">
       <div class="flex items-center gap-2">
         <div
@@ -59,7 +54,7 @@
 
   <div x-show="globalError" class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm" x-text="globalError"></div>
 
-  <form @submit.prevent="submit()" x-show="!done" class="bg-white rounded-xl shadow-sm p-6">
+  <form @submit.prevent="submit()" class="bg-white rounded-xl shadow-sm p-6">
 
     <!-- Étape 1 : dates -->
     <div x-show="step === 1" class="space-y-4">
@@ -67,7 +62,7 @@
       <div class="grid grid-cols-2 gap-4">
         <label class="block">
           <span class="text-sm text-gray-600">Date d'arrivée</span>
-          <input type="date" x-model="arrival" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
+          <input type="date" x-model="arrival"{% if min_arrival %} min="{{ min_arrival }}"{% endif %} class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
         </label>
         <label class="block">
           <span class="text-sm text-gray-600">Date de départ</span>
@@ -103,7 +98,7 @@
           <button type="button" @click="removeSejour(idx)" x-show="sejours.length > 1"
                   class="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-sm">✕</button>
 
-          <div class="relative" x-show="!isGroupe || allMailsRequired" @click.outside="sejour.showSuggestions = false">
+          <div class="relative" x-show="!isGroupe" @click.outside="sejour.showSuggestions = false">
             <label class="text-sm text-gray-600">Email (pour retrouver un visiteur existant)</label>
             <input type="email" x-model="sejour.email" @input.debounce.300ms="searchVisitors(idx)" @focus="sejour.showSuggestions = sejour.suggestions.length > 0"
                    class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2" placeholder="ex. dupont@mail.be">
@@ -123,8 +118,8 @@
             Visiteur existant sélectionné — <button type="button" class="underline" @click="clearVisitor(idx)">créer un nouveau visiteur</button>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
-            <label class="block">
+          <div class="grid gap-3" :class="isGroupe ? 'grid-cols-1' : 'grid-cols-2'">
+            <label class="block" x-show="!isGroupe">
               <span class="text-sm text-gray-600">Nom</span>
               <input type="text" x-model="sejour.nom" :disabled="!!sejour.visitorId"
                      class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2 disabled:bg-gray-100">
@@ -143,8 +138,8 @@
             </label>
             <label class="block">
               <span class="text-sm text-gray-600">Date de naissance</span>
-              <input type="date" x-model="sejour.dob" :disabled="!!sejour.visitorId"
-                     class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2 disabled:bg-gray-100">
+              <input type="date" x-model="sejour.dob"
+                     class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
             </label>
           </div>
 
@@ -184,10 +179,12 @@
         <span class="text-sm text-gray-600">Email de contact</span>
         <input type="email" x-model="contactEmail" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
       </label>
+      <p x-show="errors.contactEmail" class="text-red-600 text-sm" x-text="errors.contactEmail"></p>
       <label class="block">
         <span class="text-sm text-gray-600">Téléphone de contact</span>
         <input type="tel" x-model="contactPhone" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2">
       </label>
+      <p x-show="errors.contactPhone" class="text-red-600 text-sm" x-text="errors.contactPhone"></p>
       <label class="block">
         <span class="text-sm text-gray-600">Remarques</span>
         <textarea x-model="remarques" rows="4" class="mt-1 w-full rounded-lg border-gray-300 border px-3 py-2"></textarea>
@@ -207,27 +204,12 @@
     </div>
   </form>
 
-  <!-- Confirmation -->
-  <div x-show="done" class="bg-white rounded-xl shadow-sm p-8 text-center">
-    <div class="text-5xl mb-4">✓</div>
-    <h2 class="text-xl font-medium mb-2">Réservation confirmée</h2>
-    <p class="text-gray-500">Merci, votre réservation a bien été enregistrée.</p>
-
-    {% for msg in messages_confirmation %}
-    <div class="mt-6 text-left border-t border-gray-100 pt-6">
-      {% if msg.title %}<h3 class="font-medium text-gray-900 mb-2">{{ msg.title }}</h3>{% endif %}
-      <div class="prose prose-sm max-w-none text-gray-700 [&_a]:text-emerald-600 [&_a]:underline [&_a]:font-medium hover:[&_a]:text-emerald-700">{{ msg.message|safe }}</div>
-    </div>
-    {% endfor %}
-  </div>
-
   </div><!-- /colonne principale -->
   </div><!-- /wrapper deux colonnes -->
 </div>
 
 <script>
 function reservationWizard() {
-  const readonly = {{ readonly|yesno:"true,false" }};
   const profiles = JSON.parse(document.getElementById('data-profiles').textContent);
   const sejoursInitiaux = JSON.parse(document.getElementById('data-sejours').textContent);
   const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -235,13 +217,14 @@ function reservationWizard() {
 
   function buildSejour(s) {
     return {
+      sejourId: s ? s.sejourId : null,
       visitorId: s ? s.visitorId : null,
       nom: s ? s.nom : '',
       prenom: s ? s.prenom : '',
       email: s ? s.email : '',
       phone: s ? s.phone : '',
       dob: s ? s.dob : '',
-      profileId: defaultProfileId,
+      profileId: (s && s.profileId) || defaultProfileId,
       arrival: s ? s.arrival : '',
       departure: s ? s.departure : '',
       suggestions: [],
@@ -254,7 +237,7 @@ function reservationWizard() {
     stepLabels: ['Dates', 'Visiteurs', 'Contact'],
     profiles,
     isGroupe: {{ is_groupe|yesno:"true,false" }},
-    groupProfileId: defaultProfileId,
+    groupProfileId: {{ group_profile_id|default_if_none:"null" }} || defaultProfileId,
     maxVisitors: {{ max_visitors }},
     maxDaysChange: {{ max_days_change }},
     allMailsRequired: {{ all_mails_required|yesno:"true,false" }},
@@ -267,7 +250,6 @@ function reservationWizard() {
     errors: {},
     globalError: '',
     submitting: false,
-    done: false,
 
     next() {
       this.errors = {};
@@ -324,7 +306,6 @@ function reservationWizard() {
     },
 
     async submit() {
-      if (readonly) { this.globalError = "Cette réservation ne peut plus être modifiée."; return; }
       this.submitting = true;
       this.errors = {}; this.globalError = '';
       const body = {
@@ -335,7 +316,7 @@ function reservationWizard() {
         contactPhone: this.contactPhone,
         remarques: this.remarques,
         sejours: this.sejours.map(s => ({
-          visitorId: s.visitorId, nom: s.nom, prenom: s.prenom,
+          sejourId: s.sejourId, visitorId: s.visitorId, nom: s.nom, prenom: s.prenom,
           email: s.email, phone: s.phone, dob: s.dob, profileId: s.profileId,
           arrival: s.arrival, departure: s.departure,
         })),
@@ -347,7 +328,7 @@ function reservationWizard() {
           body: JSON.stringify(body),
         });
         const data = await resp.json();
-        if (data.ok) { this.done = true; return; }
+        if (data.ok) { window.location.reload(); return; }
         this.errors = data.errors || {};
         if (this.errors.__all__) this.globalError = this.errors.__all__;
         // Renvoie à l'étape concernée par la première erreur.

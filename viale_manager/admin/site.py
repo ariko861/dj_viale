@@ -15,6 +15,7 @@ class VialeAdminSite(UnfoldAdminSite):
         )
         from viale_manager.views.reservation_admin import (
             reservation_create_link, reservation_toggle_link_sent, reservation_delete,
+            reservation_send_link,
         )
         custom = [
             path(
@@ -41,6 +42,11 @@ class VialeAdminSite(UnfoldAdminSite):
                 'reservations/<int:pk>/toggle-link-sent/',
                 self.admin_view(reservation_toggle_link_sent),
                 name='viale_manager_reservation_toggle_link_sent',
+            ),
+            path(
+                'reservations/<int:pk>/send-link/',
+                self.admin_view(reservation_send_link),
+                name='viale_manager_reservation_send_link',
             ),
             path(
                 'reservations/<int:pk>/delete-link/',
