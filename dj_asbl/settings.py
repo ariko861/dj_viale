@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from django.urls import reverse_lazy
 import environ
+from unfold.contrib.constance.settings import UNFOLD_CONSTANCE_ADDITIONAL_FIELDS
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -359,8 +360,13 @@ AUTH_PASSWORD_VALIDATORS = [
 
 CONSTANCE_BACKEND = 'constance.backends.database.DatabaseBackend'
 
+# Champs de base aux widgets Unfold (sinon la page Constance garde ceux de Django).
 CONSTANCE_ADDITIONAL_FIELDS = {
-    'membre_select': ['core.forms.MembreChoiceField', {}],
+    **UNFOLD_CONSTANCE_ADDITIONAL_FIELDS,
+    'membre_select': ['core.forms.MembreChoiceField', {'widget': 'unfold.widgets.UnfoldAdminSelectWidget'}],
+    'texte_long': ['django.forms.CharField', {
+        'widget': 'unfold.widgets.UnfoldAdminTextareaWidget', 'widget_kwargs': {'attrs': {'rows': 3}}, 'required': False,
+    }],
 }
 
 CONSTANCE_CONFIG = {
@@ -369,8 +375,15 @@ CONSTANCE_CONFIG = {
     'PRESIDENT_ID': (0, "Membre président de l'ASBL (disponible dans les modèles de documents)", 'membre_select'),
     'VIALE_EMAIL': ('', "Adresse de la Viale : reçoit les réservations confirmées, sert de reply-to pour les mails aux visiteurs."),
     'VIALE_TELEPHONE': ('', "Téléphone de la Viale, affiché sur la page d'accueil."),
-    'VIALE_ADRESSE': ('', "Adresse de la Viale, affichée sur la page d'accueil."),
+    'VIALE_ADRESSE': ('', "Adresse de la Viale, affichée sur la page d'accueil.", 'texte_long'),
     'VIALE_LIEN_VALIDITE_JOURS': (60, "Durée de validité (jours) d'un lien de réservation non confirmé, à compter de sa création ou de son dernier envoi.", int),
+}
+
+# Sections de la page de configuration : ASBL (core) et Viale (viale_manager).
+CONSTANCE_CONFIG_FIELDSETS = {
+    'Gestion ASBL': ('REPLY_TO_EMAIL', 'SECRETAIRE_ID', 'PRESIDENT_ID'),
+    'Viale — coordonnées': ('VIALE_EMAIL', 'VIALE_TELEPHONE', 'VIALE_ADRESSE'),
+    'Viale — réservations': ('VIALE_LIEN_VALIDITE_JOURS',),
 }
 
 # Email
