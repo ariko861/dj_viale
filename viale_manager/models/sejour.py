@@ -53,7 +53,7 @@ class Sejours(models.Model):
 
     visitor = models.ForeignKey(
         'Visitors',
-        models.CASCADE,
+        models.PROTECT,
         verbose_name='Visiteur'
     )
 
