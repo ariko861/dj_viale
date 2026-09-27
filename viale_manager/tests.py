@@ -449,15 +449,35 @@ class FusionVisiteursTests(TestCase):
         self.assertEqual(set(Visitors.objects.values_list('pk', flat=True)), {recent.pk, autre.pk})
         self.assertEqual(Sejours.objects.filter(visitor=recent).count(), 2)
 
+    def submit_confirmation(self, url, resp):
+        """Soumet la page de confirmation telle que le navigateur le ferait."""
+        import re
+
+        html = resp.content.decode()
+        data = {}
+        for name, value in re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)"', html):
+            data.setdefault(name, []).append(value)
+        for name, value in re.findall(r'<input type="radio" name="([^"]+)" value="([^"]*)" checked', html):
+            data[name] = value
+        return self.client.post(url, data)
+
     def test_tout_selectionner_refait_passer_le_filtre(self):
         dob = date(2010, 5, 5)
-        a, b = self.visitor(date_de_naissance=dob), self.visitor(date_de_naissance=dob)
+        a = self.visitor(date_de_naissance=dob)
+        for _ in range(3):
+            self.visitor(date_de_naissance=dob)
         url = self.url + '?doublons=naissance'
-        data = {'action': 'fusionner_doublons_evidents', '_selected_action': [a.pk], 'select_across': '1'}
 
-        resp = self.client.post(url, data)
+        resp = self.client.post(url, {
+            'action': 'fusionner_doublons_evidents', '_selected_action': [a.pk], 'select_across': '1',
+        })
         self.assertContains(resp, 'name="select_across"')
-        self.assertNotContains(resp, f'value="{b.pk}"')
 
-        self.client.post(url, {**data, 'apply': '1'})
+        self.submit_confirmation(url, resp)
+        self.assertEqual(Visitors.objects.count(), 1)
+
+    def test_confirmation_manuelle_soumise_telle_quelle(self):
+        a, b = self.visitor(), self.visitor(prenom='Alois')
+        resp = self.client.post(self.url, {'action': 'fusionner', '_selected_action': [a.pk, b.pk]})
+        self.submit_confirmation(self.url, resp)
         self.assertEqual(Visitors.objects.count(), 1)

@@ -88,6 +88,8 @@ class VisitorAdmin(ModelAdmin):
             'action': 'fusionner',
             'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
             'select_across': request.POST.get('select_across') == '1',
+            # Django ignore la confirmation sans au moins un id coché, même en select_across.
+            'selected': request.POST.getlist(helpers.ACTION_CHECKBOX_NAME),
         })
 
     @admin.action(description='Fusionner les doublons évidents (nom, prénom, naissance)', permissions=['delete'])
@@ -119,10 +121,11 @@ class VisitorAdmin(ModelAdmin):
             'opts': self.model._meta,
             'groupes': groupes,
             'nb_fiches': sum(len(g) - 1 for g in groupes),
-            'selected': queryset.values_list('pk', flat=True),
             'action': 'fusionner_doublons_evidents',
             'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
             'select_across': request.POST.get('select_across') == '1',
+            # Django ignore la confirmation sans au moins un id coché, même en select_across.
+            'selected': request.POST.getlist(helpers.ACTION_CHECKBOX_NAME),
         })
 
 

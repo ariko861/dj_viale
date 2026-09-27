@@ -5,9 +5,9 @@
   {% csrf_token %}
   <input type="hidden" name="action" value="{{ action }}">
   <input type="hidden" name="apply" value="1">
-  {# « Tout sélectionner » : on refait passer le filtre (URL) plutôt que des milliers d'ids. #}
-  {% if select_across %}<input type="hidden" name="select_across" value="1">
-  {% else %}{% for pk in selected %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ pk }}">{% endfor %}{% endif %}
+  {# Ids cochés sur la page ; avec « tout sélectionner », select_across refait passer le filtre (URL). #}
+  {% for pk in selected %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ pk }}">{% endfor %}
+  {% if select_across %}<input type="hidden" name="select_across" value="1">{% endif %}
 
   <p class="mb-4">{{ groupes|length }} visiteur(s) en double, {{ nb_fiches }} fiche(s) à supprimer. Dans chaque groupe, la première fiche (séjour le plus récent) est conservée.</p>
 
