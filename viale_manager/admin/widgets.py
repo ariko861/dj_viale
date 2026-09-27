@@ -16,12 +16,6 @@ def _label(text, variant, icon=None, title=None):
     })
 
 
-def _bool_label(value, true_text, false_text):
-    if value:
-        return _label(true_text, 'success', icon='check')
-    return _label(false_text, 'danger', icon='close')
-
-
 def _id_cell(rid, public_url):
     return format_html(
         '<button type="button" class="text-left group cursor-pointer" onclick="vmCopyLink(this, \'{}\')">'
@@ -42,6 +36,14 @@ def _toggle_cell(url, csrf, sent):
         '</form>',
         url, csrf, switch,
     )
+
+
+def _statut_label(r):
+    if r.confirmed_at:
+        return _label('Confirmée', 'success', icon='check')
+    if r.lien_expire:
+        return _label('Lien expiré', 'warning', icon='schedule', title="Renvoyer le lien pour le réactiver.")
+    return _label('En attente', 'danger', icon='close')
 
 
 def _check_cross(value):
@@ -107,7 +109,7 @@ def reservations_widget_context(request, limit=8):
             _id_cell(r.id, public_url),
             r.remarques_accueil or '—',
             _toggle_cell(toggle_url, csrf, r.link_sent),
-            _bool_label(bool(r.confirmed_at), 'Confirmée', 'En attente'),
+            _statut_label(r),
             _check_cross(r.groupe),
             _actions_cell(r, public_url, csrf),
         ])

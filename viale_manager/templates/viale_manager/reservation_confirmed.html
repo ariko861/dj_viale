@@ -57,7 +57,11 @@
 
   {% else %}
   <div class="bg-white rounded-xl shadow-sm p-6">
+    {% if expire %}
+    <p>Ce lien de réservation a expiré. Contactez l'accueil de la Viale pour en recevoir un nouveau.</p>
+    {% else %}
     <p>Ce lien de réservation n'est pas actif. Contactez l'accueil de la Viale.</p>
+    {% endif %}
   </div>
   {% endif %}
 

@@ -146,7 +146,7 @@ class ReservationAdmin(ModelAdmin):
     list_display = ['id', 'contact_email', 'contact_phone', 'confirmed_at', 'link_sent', 'groupe', 'nom_groupe']
     list_filter = ['link_sent', 'groupe', 'all_mails_required']
     search_fields = ['contact_email', 'contact_phone', 'nom_groupe']
-    readonly_fields = ['created_at', 'updated_at', 'confirmed_at', 'link_token']
+    readonly_fields = ['created_at', 'updated_at', 'confirmed_at', 'link_token', 'link_valid_from']
     inlines = [SejoursInline]
     conditional_fields = {
         'nom_groupe': 'groupe == true',
@@ -230,6 +230,7 @@ class ReservationAdmin(ModelAdmin):
             return super().response_add(request, obj, post_url_continue)
         messages.success(request, f"Réservation {obj.id} créée.")
         return redirect(reverse('viale_manager:viale_manager_sejours_changelist'))
+
 
 
 viale_admin.register(Sejours, SejourAdmin)

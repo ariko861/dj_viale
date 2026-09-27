@@ -370,6 +370,7 @@ CONSTANCE_CONFIG = {
     'VIALE_EMAIL': ('', "Adresse de la Viale : reçoit les réservations confirmées, sert de reply-to pour les mails aux visiteurs."),
     'VIALE_TELEPHONE': ('', "Téléphone de la Viale, affiché sur la page d'accueil."),
     'VIALE_ADRESSE': ('', "Adresse de la Viale, affichée sur la page d'accueil."),
+    'VIALE_LIEN_VALIDITE_JOURS': (60, "Durée de validité (jours) d'un lien de réservation non confirmé, à compter de sa création ou de son dernier envoi.", int),
 }
 
 # Email

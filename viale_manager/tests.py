@@ -868,3 +868,47 @@ class EnvoiEmailVisiteursTests(TestCase):
                                            'apply': '1', 'sujet': '', 'message': 'x'})
         self.assertTemplateUsed(resp, 'viale_manager/admin/visitors_email.html')
         self.assertEqual(len(mail.outbox), 0)
+
+
+@override_config(VIALE_LIEN_VALIDITE_JOURS=60)
+class PeremptionLienTests(TestCase):
+
+    def reservation(self, age_jours, **kwargs):
+        from django.utils import timezone
+
+        r = _reservation(**kwargs)
+        Reservations.objects.filter(pk=r.pk).update(created_at=timezone.now() - timedelta(days=age_jours))
+        r.refresh_from_db()
+        return r
+
+    def test_lien_non_confirme_expire(self):
+        r = self.reservation(61)
+        url = reverse('reservation_form', args=[r.link_token])
+        self.assertTrue(r.lien_expire)
+        self.assertContains(self.client.get(url), 'a expiré')
+        self.assertEqual(self.client.post(url, '{}', content_type='application/json').status_code, 403)
+        recherche = reverse('reservation_visitor_search', args=[r.link_token])
+        self.assertEqual(self.client.get(recherche, {'q': 'x@example.com'}).json(), [])
+
+    def test_lien_recent_ou_confirme_valable(self):
+        from django.utils import timezone
+
+        self.assertFalse(self.reservation(59).lien_expire)
+        self.assertFalse(self.reservation(400, confirmed_at=timezone.now()).lien_expire)
+
+    @override_config(VIALE_LIEN_VALIDITE_JOURS=90)
+    def test_duree_reglable(self):
+        self.assertFalse(self.reservation(61).lien_expire)
+
+    @override_settings(STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    })
+    def test_envoi_du_lien_le_renouvelle(self):
+        self.client.force_login(User.objects.create_superuser(username='admin', password='x'))
+        r = self.reservation(61, contact_email='contact@example.com')
+        self.assertContains(self.client.get(reverse('viale_manager:index')), 'Lien expiré')
+
+        self.client.post(reverse('viale_manager:viale_manager_reservation_send_link', args=[r.id]))
+        r.refresh_from_db()
+        self.assertFalse(r.lien_expire)

@@ -31,6 +31,7 @@ def reservation_create_link(request):
     reservation.authorize_edition = True
     reservation.link_sent = False
     reservation.created_at = now
+    reservation.link_valid_from = now
     reservation.updated_at = now
     reservation.save()
     messages.success(request, "Lien de réservation créé.")
@@ -60,7 +61,9 @@ def reservation_send_link(request, pk):
         return _back(request)
     reservation.authorize_edition = True
     reservation.link_sent = True
-    reservation.save(update_fields=['authorize_edition', 'link_sent', 'updated_at'])
+    # Un envoi fait repartir la validité du lien (VIALE_LIEN_VALIDITE_JOURS).
+    reservation.link_valid_from = timezone.now()
+    reservation.save(update_fields=['authorize_edition', 'link_sent', 'link_valid_from', 'updated_at'])
     messages.success(request, f"Lien envoyé à {reservation.contact_email}.")
     return _back(request)
 

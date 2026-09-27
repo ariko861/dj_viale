@@ -53,11 +53,12 @@ class ReservationFormView(View):
         )
         messages = Messages.objects.order_by('id')
 
-        if not reservation.authorize_edition:
+        if not reservation.authorize_edition or reservation.lien_expire:
             return render(request, 'viale_manager/reservation_confirmed.html', {
                 'reservation': reservation,
                 'sejours': sejours,
                 'messages_confirmation': messages.filter(type=Messages.TypeMessage.CONFIRMATION),
+                'expire': reservation.lien_expire,
             })
 
         profiles = list(Profiles.objects.all().order_by('-is_default', 'name'))
@@ -110,6 +111,11 @@ class ReservationFormView(View):
 
     def post(self, request, token):
         reservation = self.get_reservation(token)
+        if reservation.lien_expire:
+            return JsonResponse(
+                {'ok': False, 'errors': {'__all__': "Ce lien a expiré : contactez l'accueil de la Viale."}},
+                status=403,
+            )
         if not reservation.authorize_edition:
             return JsonResponse(
                 {'ok': False, 'errors': {'__all__': "Cette réservation ne peut plus être modifiée."}},
@@ -295,7 +301,8 @@ def visitor_search(request, token):
     correspondance EXACTE de l'email (sinon on divulguerait les coordonnées
     d'autres visiteurs). Le staff connecté garde la recherche partielle.
     """
-    get_object_or_404(Reservations, link_token=token)
+    if get_object_or_404(Reservations, link_token=token).lien_expire:
+        return JsonResponse([], safe=False)
     q = (request.GET.get('q') or '').strip()
     if len(q) < 3:
         return JsonResponse([], safe=False)
