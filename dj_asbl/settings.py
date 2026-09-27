@@ -35,10 +35,25 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 
 # Application definition
 
+# Menu sous le nom du site (clic sur le logo) pour passer d'un admin à l'autre.
+UNFOLD_SITE_DROPDOWN = [
+    {
+        'icon': 'handshake',
+        'title': 'Gestion ASBL',
+        'link': reverse_lazy('admin:index'),
+    },
+    {
+        'icon': 'home',
+        'title': 'Viale — Gestion des séjours',
+        'link': reverse_lazy('viale_manager:index'),
+    },
+]
+
 UNFOLD = {
     'SITE_TITLE': 'Gestion ASBL la Viale Lozère - Quartier Gallet',
     'SITE_HEADER': 'Gestion ASBL la Viale Lozère - Quartier Gallet',
     'SITE_SYMBOL': 'handshake',
+    'SITE_DROPDOWN': UNFOLD_SITE_DROPDOWN,
     'SHOW_BACK_BUTTON': True,
     'DASHBOARD_CALLBACK': 'core.checks.dashboard_callback',
     'SIDEBAR': {
@@ -143,6 +158,7 @@ UNFOLD_VIALE = {
     'SITE_TITLE': 'Viale Manager',
     'SITE_HEADER': 'Viale — Gestion des séjours',
     'SITE_SYMBOL': 'home',
+    'SITE_DROPDOWN': UNFOLD_SITE_DROPDOWN,
     'SHOW_BACK_BUTTON': True,
     'DASHBOARD_CALLBACK': 'viale_manager.dashboard.dashboard_callback',
     'SIDEBAR': {
