@@ -4,6 +4,10 @@ from django.db.models import F, Max, Q
 from django.db.models.functions import Lower, Trim
 
 
+class FusionImpossible(Exception):
+    """La fusion perdrait un compte visiteur : plusieurs fiches ont chacune le leur."""
+
+
 class Visitors(models.Model):
 
     id = models.BigAutoField(primary_key=True)
@@ -111,10 +115,13 @@ class Visitors(models.Model):
         Les séjours sont rattachés à ce visiteur. Ses champs vides sont
         complétés par ceux des doublons (le plus récent d'abord) ; leurs
         autres emails et téléphones deviennent des coordonnées secondaires, et
-        leurs remarques s'ajoutent aux siennes.
+        leurs remarques s'ajoutent aux siennes. Le compte visiteur d'une fiche
+        absorbée passe à ce visiteur.
 
         :param others: visiteurs à absorber (ce visiteur est ignoré s'il y figure).
         :return: le nombre de visiteurs supprimés.
+        :raises FusionImpossible: si plusieurs fiches ont chacune un compte
+            (l'un d'eux perdrait sa fiche) ; rien n'est alors modifié.
         """
         from .sejour import Sejours
 
@@ -122,6 +129,17 @@ class Visitors(models.Model):
         if not others:
             return 0
         others.sort(key=lambda o: o.pk, reverse=True)
+
+        comptes = [v for v in [self, *others] if v.user_id]
+        if len(comptes) > 1:
+            raise FusionImpossible(
+                f"{', '.join(str(v) for v in comptes)} ont chacun un compte visiteur : "
+                "fusion impossible sans en perdre un."
+            )
+        if comptes and comptes[0] is not self:
+            # OneToOne : le compte est d'abord retiré de la fiche absorbée.
+            Visitors.objects.filter(pk=comptes[0].pk).update(user=None)
+            self.user_id = comptes[0].user_id
 
         for field in ('email', 'phone', 'date_de_naissance'):
             if not getattr(self, field):

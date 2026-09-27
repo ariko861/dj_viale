@@ -8,6 +8,7 @@ from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 
 from viale_manager.models import VisitorContacts, Visitors
+from viale_manager.models.visitor import FusionImpossible
 from .site import viale_admin
 
 
@@ -75,7 +76,11 @@ class VisitorAdmin(ModelAdmin):
             if reference is None:
                 self.message_user(request, "Choisissez la fiche à conserver.", messages.ERROR)
             else:
-                n = reference.absorb(visitors)
+                try:
+                    n = reference.absorb(visitors)
+                except FusionImpossible as e:
+                    self.message_user(request, str(e), messages.ERROR)
+                    return None
                 self.message_user(request, f"{n} fiche(s) fusionnée(s) dans {reference}.", messages.SUCCESS)
                 return None
 
@@ -97,12 +102,23 @@ class VisitorAdmin(ModelAdmin):
         """Regroupe la sélection par nom + prénom + naissance et fusionne chaque groupe.
 
         La fiche conservée est celle du séjour le plus récent (à défaut, la plus
-        récente), supposée avoir les coordonnées les plus à jour.
+        récente), supposée avoir les coordonnées les plus à jour. Les groupes où
+        plusieurs fiches ont un compte visiteur sont écartés (cf.
+        :class:`~viale_manager.models.visitor.FusionImpossible`).
         """
         groupes = defaultdict(list)
         for v in queryset.exclude(date_de_naissance__isnull=True).order_by(F('dernier_sejour').desc(nulls_last=True), '-id'):
             groupes[_cle_doublon(v)].append(v)
         groupes = [g for g in groupes.values() if len(g) > 1]
+        avec_comptes = [g for g in groupes if sum(1 for v in g if v.user_id) > 1]
+        groupes = [g for g in groupes if g not in avec_comptes]
+        if avec_comptes:
+            self.message_user(
+                request,
+                f"{len(avec_comptes)} groupe(s) écarté(s), plusieurs fiches ayant un compte visiteur : "
+                + ' ; '.join(str(g[0]) for g in avec_comptes) + ". À fusionner à la main après vérification.",
+                messages.WARNING,
+            )
 
         if request.POST.get('apply'):
             n = sum(g[0].absorb(g[1:]) for g in groupes)

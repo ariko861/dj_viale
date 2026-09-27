@@ -414,6 +414,37 @@ class FusionVisiteursTests(TestCase):
         ref.absorb([dup])
         self.assertEqual(list(ref.contacts.values_list('value', flat=True)), ['famille@x.be'])
 
+    def test_absorb_transfere_le_compte(self):
+        user = User.objects.create_user(username='b@example.com')
+        ref, dup = self.visitor(), self.visitor(user=user)
+        ref.absorb([dup])
+        ref.refresh_from_db()
+        self.assertEqual(ref.user, user)
+
+    def test_absorb_refuse_si_plusieurs_comptes(self):
+        from viale_manager.models.visitor import FusionImpossible
+
+        ref = self.visitor(arrival=date(2025, 1, 1), user=User.objects.create_user(username='a@example.com'))
+        dup = self.visitor(arrival=date(2024, 1, 1), user=User.objects.create_user(username='b@example.com'))
+        with self.assertRaises(FusionImpossible):
+            ref.absorb([dup])
+        self.assertEqual(Visitors.objects.count(), 2)
+        self.assertEqual(Sejours.objects.get(visitor=dup).visitor_id, dup.id)
+
+    def test_doublons_evidents_ecarte_les_groupes_a_plusieurs_comptes(self):
+        dob = date(2010, 5, 5)
+        pks = [
+            self.visitor(date_de_naissance=dob, user=User.objects.create_user(username='a@example.com')).pk,
+            self.visitor(date_de_naissance=dob, user=User.objects.create_user(username='b@example.com')).pk,
+            self.visitor(prenom='Marin', date_de_naissance=dob).pk,
+            self.visitor(prenom='Marin', date_de_naissance=dob).pk,
+        ]
+        resp = self.client.post(self.url, {'action': 'fusionner_doublons_evidents', '_selected_action': pks, 'apply': '1'},
+                                follow=True)
+        self.assertEqual(Visitors.objects.filter(prenom='Aloïs').count(), 2)
+        self.assertEqual(Visitors.objects.filter(prenom='Marin').count(), 1)
+        self.assertContains(resp, 'groupe(s) écarté(s)')
+
     def test_filtre_doublons(self):
         dob = date(2010, 5, 5)
         a, b = self.visitor(date_de_naissance=dob), self.visitor(nom=' PELTIER', date_de_naissance=dob)
