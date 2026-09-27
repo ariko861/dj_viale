@@ -1,0 +1,5 @@
+# Tâches planifiées, exécutées par supercronic dans le service « cron » (heure de Bruxelles, TZ).
+# Format cron standard : minute heure jour mois jour-de-semaine commande.
+
+# Emails automatiques « arrivée » (relatifs à la date d'arrivée des séjours confirmés).
+0 8 * * * python manage.py send_arrival_mails

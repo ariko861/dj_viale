@@ -1,3 +1,21 @@
+x-django-env: &django-env
+  POSTGRES_HOST: db
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: ${POSTGRES_DB:-dj_asbl}
+  POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+  SECRET_KEY: ${SECRET_KEY}
+  DEBUG: ${DEBUG:-False}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-asbl@localhost}
+  SMTP_HOST: ${SMTP_HOST:-localhost}
+  SMTP_PORT: ${SMTP_PORT:-25}
+  SMTP_USE_TLS: ${SMTP_USE_TLS:-False}
+  SMTP_USE_SSL: ${SMTP_USE_SSL:-False}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+
 services:
   db:
     image: postgres:17
@@ -24,27 +42,25 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-dj_asbl}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      SECRET_KEY: ${SECRET_KEY}
-      DEBUG: ${DEBUG:-False}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost}
-      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
-      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-asbl@localhost}
-      SMTP_HOST: ${SMTP_HOST:-localhost}
-      SMTP_PORT: ${SMTP_PORT:-25}
-      SMTP_USE_TLS: ${SMTP_USE_TLS:-False}
-      SMTP_USE_SSL: ${SMTP_USE_SSL:-False}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    environment: *django-env
     volumes:
       - dj_asbl_media:/app/media
     ports:
       - "${PORT:-8000}:8000"
+
+  # Tâches planifiées (crontab à la racine du dépôt) : même image que web, sans serveur.
+  cron:
+    build: .
+    restart: unless-stopped
+    networks:
+      - dj_asbl
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["supercronic", "/app/crontab"]
+    environment:
+      <<: *django-env
+      TZ: Europe/Brussels
 
 volumes:
   dj_asbl_postgres_data:
