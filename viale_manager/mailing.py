@@ -1,3 +1,5 @@
+import logging
+
 from constance import config
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -6,6 +8,23 @@ from django.urls import reverse
 from django.utils.html import strip_tags
 
 from viale_manager.models import AutoMails, Sejours
+
+logger = logging.getLogger(__name__)
+
+
+def _send(msg, silent=True):
+    """Envoie ``msg`` ; avec ``silent``, un échec est journalisé au lieu d'être levé.
+
+    Remplace ``fail_silently``, déprécié depuis Django 6.1 : l'échec reste
+    visible dans les logs.
+    """
+    if not silent:
+        return msg.send()
+    try:
+        return msg.send()
+    except Exception:
+        logger.exception("Échec de l'envoi de « %s » à %s", msg.subject, ', '.join(msg.to))
+        return 0
 
 
 def send_confirmation_auto_mails(recipient_emails):
@@ -37,10 +56,10 @@ def send_auto_mail(mail, recipients):
             reply_to=[config.VIALE_EMAIL] if config.VIALE_EMAIL else None,
         )
         msg.attach_alternative(mail.body, 'text/html')
-        msg.send(fail_silently=True)
+        _send(msg)
 
 
-def _send_html(subject, template, context, to, reply_to=None, fail_silently=True):
+def _send_html(subject, template, context, to, reply_to=None, silent=True):
     html = render_to_string(template, context)
     msg = EmailMultiAlternatives(
         subject=f'[Viale] {subject}',
@@ -50,7 +69,7 @@ def _send_html(subject, template, context, to, reply_to=None, fail_silently=True
         reply_to=[reply_to] if reply_to else None,
     )
     msg.attach_alternative(html, 'text/html')
-    msg.send(fail_silently=fail_silently)
+    _send(msg, silent=silent)
 
 
 def _reservation_context(request, reservation):
@@ -78,7 +97,7 @@ def send_reservation_link(request, reservation):
         _reservation_context(request, reservation),
         to=[reservation.contact_email],
         reply_to=config.VIALE_EMAIL,
-        fail_silently=False,
+        silent=False,
     )
 
 

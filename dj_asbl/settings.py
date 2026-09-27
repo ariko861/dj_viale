@@ -366,13 +366,19 @@ CONSTANCE_CONFIG = {
 
 # Email
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = env.str('SMTP_HOST', default='localhost')
-EMAIL_PORT = env.int('SMTP_PORT', default=25)
-EMAIL_USE_TLS = env.bool('SMTP_USE_TLS', default=False)
-EMAIL_USE_SSL = env.bool('SMTP_USE_SSL', default=False)
-EMAIL_HOST_USER = env.str('SMTP_USER', default='')
-EMAIL_HOST_PASSWORD = env.str('SMTP_PASSWORD', default='')
+MAILERS = {
+    'default': {
+        'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+        'OPTIONS': {
+            'host': env.str('SMTP_HOST', default='localhost'),
+            'port': env.int('SMTP_PORT', default=25),
+            'use_tls': env.bool('SMTP_USE_TLS', default=False),
+            'use_ssl': env.bool('SMTP_USE_SSL', default=False),
+            'username': env.str('SMTP_USER', default=''),
+            'password': env.str('SMTP_PASSWORD', default=''),
+        },
+    },
+}
 DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', default='asbl@localhost')
 
 # Internationalization

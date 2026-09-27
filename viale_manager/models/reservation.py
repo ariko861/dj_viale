@@ -26,3 +26,4 @@ class Reservations(models.Model):
 
     class Meta:
         db_table = '"viale_manager"."reservations"'
+        verbose_name = 'réservation'

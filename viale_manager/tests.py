@@ -733,3 +733,22 @@ class AccueilTests(TestCase):
 
         self.client.force_login(User.objects.create_user(username='staff', is_staff=True))
         self.assertContains(self.client.get('/'), reverse('compte_inscription'))
+
+
+class EnvoiTests(TestCase):
+
+    def test_echec_journalise_ou_leve(self):
+        from smtplib import SMTPException
+        from unittest import mock
+
+        from django.core.mail import EmailMessage
+
+        from viale_manager.mailing import _send
+
+        msg = EmailMessage(subject='Sujet', body='x', to=['a@example.com'])
+        with mock.patch.object(EmailMessage, 'send', side_effect=SMTPException('panne')):
+            with self.assertLogs('viale_manager.mailing', 'ERROR') as logs:
+                self.assertEqual(_send(msg), 0)
+            self.assertIn('a@example.com', logs.output[0])
+            with self.assertRaises(SMTPException):
+                _send(msg, silent=False)
