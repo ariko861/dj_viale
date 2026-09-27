@@ -18,12 +18,25 @@ class Reunion(models.Model):
         limit_choices_to={'est_lieu_reunion': True},
     )
 
+    annee = models.PositiveSmallIntegerField(
+        'année',
+        blank=True,
+        db_index=True,
+        help_text="Laisser vide pour utiliser l'année de début de la réunion.",
+    )
+
     ordre_du_jour = models.TextField(null=True, blank=True)
 
     membres = models.ManyToManyField(
         'Membre',
         through='MembreReunion',
     )
+
+    def save(self, *args, **kwargs):
+        if self.annee is None:
+            self.annee = self.debut.year
+        super().save(*args, **kwargs)
+        self.documents.exclude(annee=self.annee).update(annee=self.annee)
 
     @property
     def date_debut(self):

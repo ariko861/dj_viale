@@ -93,6 +93,8 @@ class ProcurationsInline(TabularInline):
 @admin.register(Reunion)
 class ReunionAdmin(ModelAdmin):
 
+    list_display = ['__str__', 'annee']
+    list_filter = ['annee']
     inlines = [DocumentsInline, MembresInline, ProcurationsInline, EmailsEnvoyesInline]
     readonly_fields = ['documents_disponibles', 'compteur_presences']
     actions_detail = ['telecharger_ical', 'envoyer_email', 'telecharger_documents_zip']

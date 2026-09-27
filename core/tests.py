@@ -69,3 +69,81 @@ class HijackTests(TestCase):
         self.client.force_login(User.objects.create_user(username='accueil', password='x', is_staff=True))
         resp = self.client.post('/hijack/acquire/', {'user_pk': self.visiteur.pk})
         self.assertEqual(resp.status_code, 403)
+
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class AnneeTests(TestCase):
+
+    def setUp(self):
+        from datetime import datetime
+
+        from django.core.files.base import ContentFile
+
+        from core.models import DocumentReunion, Organe, Reunion
+
+        self.organe = Organe.objects.create(code='CA', nom="Conseil d'administration", nom_court='CA')
+        self.reunion = Reunion.objects.create(organe=self.organe, debut=datetime(2025, 3, 10, 18))
+        self.doc = DocumentReunion.objects.create(
+            reunion=self.reunion, nom='pv.pdf', fichier=ContentFile(b'pv', name='pv.pdf'),
+        )
+        self.global_2025 = DocumentReunion.objects.create(
+            annee=2025, nom='comptes.pdf', fichier=ContentFile(b'comptes', name='comptes.pdf'),
+        )
+        self.global_2026 = DocumentReunion.objects.create(
+            annee=2026, nom='budget.pdf', fichier=ContentFile(b'budget', name='budget.pdf'),
+        )
+
+    def test_annee_par_defaut_depuis_debut(self):
+        self.assertEqual(self.reunion.annee, 2025)
+
+    def test_document_reprend_annee_de_la_reunion(self):
+        self.assertEqual(self.doc.annee, 2025)
+        self.doc.annee = 2030
+        self.doc.save()
+        self.doc.refresh_from_db()
+        self.assertEqual(self.doc.annee, 2025)
+
+    def test_changer_annee_reunion_propage_aux_documents(self):
+        self.reunion.annee = 2024
+        self.reunion.save()
+        self.doc.refresh_from_db()
+        self.assertEqual(self.doc.annee, 2024)
+
+    def test_detacher_un_document_de_sa_reunion(self):
+        self.client.force_login(User.objects.create_superuser(username='admin', password='x'))
+        url = f'/admin/core/documentreunion/{self.doc.pk}/change/'
+        self.assertContains(self.client.get(url), 'name="reunion"')
+        resp = self.client.post(url, {'nom': 'pv.pdf', 'reunion': ''})
+        self.assertEqual(resp.status_code, 302)
+        self.doc.refresh_from_db()
+        self.assertIsNone(self.doc.reunion)
+        self.assertEqual(self.doc.annee, 2025)
+        self.assertTrue(self.doc.fichier)
+
+    def test_zip_des_documents_d_une_annee(self):
+        import io
+        import zipfile
+
+        from core.models import DocumentReunion
+
+        self.client.force_login(User.objects.create_superuser(username='admin', password='x'))
+        ids = DocumentReunion.objects.filter(annee=2025).values_list('pk', flat=True)
+        resp = self.client.post('/admin/core/documentreunion/', {
+            'action': 'telecharger_zip', '_selected_action': list(ids),
+        })
+        self.assertEqual(resp['Content-Disposition'], 'attachment; filename="documents_2025.zip"')
+        noms = zipfile.ZipFile(io.BytesIO(resp.content)).namelist()
+        self.assertCountEqual(noms, [
+            "2025/Conseil d'administration/2025-03-10 - CA/pv.pdf",
+            '2025/Documents généraux/comptes.pdf',
+        ])
+
+    def test_filtre_par_annee_dans_l_admin(self):
+        self.client.force_login(User.objects.create_superuser(username='admin', password='x'))
+        self.assertEqual(self.client.get('/admin/core/reunion/?annee=2025').status_code, 200)
+        resp = self.client.get('/admin/core/documentreunion/?annee=2026')
+        self.assertContains(resp, 'budget.pdf')
+        self.assertNotContains(resp, 'comptes.pdf')
