@@ -65,6 +65,15 @@ class HijackTests(TestCase):
         self.client.post('/hijack/release/', {'next': '/admin/'})
         self.assertEqual(self.client.get('/admin/').status_code, 200)
 
+    def test_bandeau_sur_l_admin_viale(self):
+        # Sur /accueil/, current_app vaut 'viale_manager' : le lien de retour ne doit pas en dépendre.
+        staff = User.objects.create_user(username='equipe', password='x', is_staff=True)
+        self.client.force_login(User.objects.create_superuser(username='admin', password='x'))
+        self.client.post('/hijack/acquire/', {'user_pk': staff.pk})
+        page = self.client.get('/accueil/')
+        self.assertContains(page, 'Revenir à mon compte')
+        self.assertContains(page, 'value="/admin/core/user/"')
+
     def test_equipe_ne_peut_pas_se_faire_passer_pour_quelqu_un(self):
         self.client.force_login(User.objects.create_user(username='accueil', password='x', is_staff=True))
         resp = self.client.post('/hijack/acquire/', {'user_pk': self.visiteur.pk})

@@ -329,6 +329,18 @@ LOGIN_REDIRECT_URL = 'admin:index'
 
 WSGI_APPLICATION = 'dj_asbl.wsgi.application'
 
+# Traces des erreurs 500 sur la sortie standard (docker compose logs web), même avec DEBUG=False.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+    },
+    'loggers': {
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
+    },
+}
+
 
 # Database
 DATABASES = {

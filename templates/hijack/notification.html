@@ -8,7 +8,8 @@
     <span>Vous êtes connecté en tant que <strong>{{ request.user }}</strong>.</span>
     <form action="{% url 'hijack:release' %}" method="POST" style="display: flex; gap: 6px; margin: 0;">
       {% csrf_token %}
-      <input type="hidden" name="next" value="{% url 'admin:core_user_changelist' %}">
+      {# Chemin en dur : sur /accueil/, {% url 'admin:…' %} résout dans l'admin Viale, où User n'est pas enregistré. #}
+      <input type="hidden" name="next" value="/admin/core/user/">
       <button type="submit" style="cursor: pointer; border: 0; border-radius: 6px; padding: 4px 10px;
               background: #fff; color: #5b21b6; font-weight: 600;">Revenir à mon compte</button>
       <button type="button" onclick="document.getElementById('djhj').style.display = 'none';"
