@@ -640,6 +640,33 @@ class StatistiquesTests(TestCase):
         user.user_permissions.add(Permission.objects.get(codename='view_statistiques'))
         self.assertEqual(self.client.get(url).status_code, 200)
 
+    def test_permission_remove_from_stats(self):
+        from django.contrib.auth.models import Permission
+
+        arrival = date.today() + timedelta(days=1)
+        sejour = self.sejour(arrival, arrival + timedelta(days=4))
+        user = User.objects.create_user(username='accueil', password='x', is_staff=True)
+        user.user_permissions.add(*Permission.objects.filter(codename__in=['view_sejours', 'change_sejours']))
+        self.client.force_login(user)
+        url = reverse('viale_manager:viale_manager_sejours_change', args=[sejour.pk])
+        data = {'confirmed': 'on', 'remove_from_stats': 'on', 'arrival_date': arrival.isoformat(),
+                'departure_date': (arrival + timedelta(days=4)).isoformat(), 'price': '10'}
+
+        self.assertNotContains(self.client.get(url), 'etirer des statistiques')
+        changelist = self.client.get(reverse('viale_manager:viale_manager_sejours_changelist'))
+        self.assertNotContains(changelist, 'remove_from_stats')
+        self.client.post(url, data)
+        sejour.refresh_from_db()
+        self.assertFalse(sejour.remove_from_stats)
+
+        user.user_permissions.add(Permission.objects.get(codename='change_remove_from_stats'))
+        user = User.objects.get(pk=user.pk)  # vide le cache des permissions
+        self.client.force_login(user)
+        self.assertContains(self.client.get(url), 'name="remove_from_stats"')
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        sejour.refresh_from_db()
+        self.assertTrue(sejour.remove_from_stats)
+
 @override_settings(STORAGES={
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},

@@ -51,7 +51,7 @@ class ReservationSection(TemplateSection):
 class SejourAdmin(ModelAdmin):
     list_display = ['reservation_label', 'visitor', 'arrival_date', 'departure_date', 'nuitees', 'room', 'price', 'confirmed', 'total']
     list_display_links = ['visitor']
-    list_filter = [PeriodeSejourFilter, 'confirmed', 'remove_from_stats']
+    list_filter = [PeriodeSejourFilter, 'confirmed']
     search_fields = ['visitor__nom', 'visitor__prenom', 'reservation__nom_groupe', 'reservation__contact_email']
     autocomplete_fields = ['room']
     list_select_related = ['visitor', 'room', 'reservation']
@@ -107,6 +107,12 @@ class SejourAdmin(ModelAdmin):
             sejour.delete()
             messages.warning(request, f"Séjour de {sejour.visitor} annulé.")
         return self._back_to_list(request)
+
+    def get_exclude(self, request, obj=None):
+        exclude = super().get_exclude(request, obj) or []
+        if not request.user.has_perm('viale_manager.change_remove_from_stats'):
+            exclude = [*exclude, 'remove_from_stats']
+        return exclude
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
